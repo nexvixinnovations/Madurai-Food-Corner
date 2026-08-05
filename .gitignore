@@ -1,0 +1,46 @@
+# Node / JavaScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.cache/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# Prisma
+backend/src/prisma/generated/
+
+# Uploads & Temp files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+.DS_Store
+
+# Android / Gradle
+admin-app/.gradle/
+admin-app/build/
+admin-app/app/build/
+admin-app/local.properties
+admin-app/.navigation/
+admin-app/captures/
+*.apk
+*.aar
+*.keystore
+*.jks
+
+# Documentation build / temp
+docs/_site/

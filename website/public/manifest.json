@@ -1,0 +1,24 @@
+{
+  "short_name": "MFC Food",
+  "name": "Madurai Food Corner - Authentic Cuisine",
+  "description": "Order authentic Madurai food online for fast delivery, takeaway, or parcel.",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FAF6F0",
+  "theme_color": "#3B1B10",
+  "display": "standalone",
+  "orientation": "portrait"
+}

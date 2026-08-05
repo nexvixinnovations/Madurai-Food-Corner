@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model combo_items {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  combo_id     String     @db.Uuid
+  food_item_id String     @db.Uuid
+  quantity     Int        @default(1)
+  combos       combos     @relation(fields: [combo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  food_items   food_items @relation(fields: [food_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model combos {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String        @db.VarChar(150)
+  image_url     String?
+  price         Decimal       @db.Decimal(10, 2)
+  dine_in_price Decimal?      @db.Decimal(10, 2)
+  parcel_price  Decimal?      @db.Decimal(10, 2)
+  offer_enabled Boolean?      @default(false)
+  offer_price   Decimal?      @db.Decimal(10, 2)
+  available     Boolean?      @default(true)
+  created_at    DateTime?     @default(now()) @db.Timestamp(6)
+  combo_items   combo_items[]
+  order_items   order_items[]
+}
+
+model customers {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String    @db.VarChar(100)
+  phone      String    @db.VarChar(20)
+  email      String?   @db.VarChar(150)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  orders     orders[]
+}
+
+model food_items {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String                @db.VarChar(150)
+  description         String?
+  image_url           String?
+  price               Decimal               @db.Decimal(10, 2)
+  offer_enabled       Boolean?              @default(false)
+  offer_price         Decimal?              @db.Decimal(10, 2)
+  available           Boolean?              @default(true)
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  category            String                @default("General") @db.VarChar(100)
+  display_order       Int                   @default(1)
+  food_type           String                @default("Veg") @db.VarChar(20)
+  preparation_time    Int?                  @default(15)
+  available_days      String?               @default("Every Day")
+  combo_items         combo_items[]
+  menu_schedule       menu_schedule[]
+  order_items         order_items[]
+  special_offer_items special_offer_items[]
+
+  @@index([available], map: "idx_food_available")
+}
+
+model menu_schedule {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  menu_date     DateTime   @db.Date
+  food_item_id  String     @db.Uuid
+  display_order Int?       @default(1)
+  available     Boolean?   @default(true)
+  food_items    food_items @relation(fields: [food_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([menu_date, food_item_id])
+  @@index([menu_date], map: "idx_menu_date")
+}
+
+model order_items {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id         String          @db.Uuid
+  food_item_id     String?         @db.Uuid
+  combo_id         String?         @db.Uuid
+  special_offer_id String?         @db.Uuid
+  quantity         Int             @default(1)
+  unit_price       Decimal         @db.Decimal(10, 2)
+  line_total       Decimal         @db.Decimal(10, 2)
+  combos           combos?         @relation(fields: [combo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  food_items       food_items?     @relation(fields: [food_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  special_offers   special_offers? @relation(fields: [special_offer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders           orders          @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model orders {
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_number            String        @unique @db.VarChar(30)
+  customer_id             String?       @db.Uuid
+  order_source            String        @default("website") @db.VarChar(20)
+  required_date           DateTime      @db.Date
+  required_time           DateTime?     @db.Time(6)
+  order_type              String        @db.VarChar(20)
+  payment_method          String?       @db.VarChar(30)
+  payment_status          String?       @default("Pending") @db.VarChar(20)
+  status                  String?       @default("Pending") @db.VarChar(20)
+  subtotal                Decimal?      @default(0) @db.Decimal(10, 2)
+  eligible_subtotal       Decimal?      @default(0) @db.Decimal(10, 2)
+  special_offer_subtotal  Decimal?      @default(0) @db.Decimal(10, 2)
+  discount_percentage     Decimal?      @default(0) @db.Decimal(5, 2)
+  discount_amount         Decimal?      @default(0) @db.Decimal(10, 2)
+  total_amount            Decimal       @default(0) @db.Decimal(10, 2)
+  created_at              DateTime?     @default(now()) @db.Timestamp(6)
+  special_instruction     String?
+  order_items             order_items[]
+  customers               customers?    @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments                payments[]
+
+  @@index([required_date], map: "idx_orders_required_date")
+  @@index([status], map: "idx_orders_status")
+}
+
+model payments {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String    @db.Uuid
+  transaction_id  String?   @db.VarChar(100)
+  payment_gateway String?   @db.VarChar(50)
+  amount          Decimal   @db.Decimal(10, 2)
+  status          String?   @db.VarChar(20)
+  paid_at         DateTime? @db.Timestamp(6)
+  orders          orders    @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model settings {
+  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  restaurant_name            String?   @db.VarChar(150)
+  phone                      String?   @db.VarChar(20)
+  address                    String?
+  opening_time               DateTime? @db.Time(6)
+  closing_time               DateTime? @db.Time(6)
+  currency                   String?   @default("INR") @db.VarChar(10)
+  email                      String?   @db.VarChar(150)
+  gst_number                 String?   @db.VarChar(30)
+  date_wise_ordering_enabled Boolean?  @default(true)
+  disabled_dates             String?   @default("[]")
+  order_discount_enabled     Boolean?  @default(false)
+  tier1_min_amount           Decimal?  @db.Decimal(10, 2)
+  tier1_percentage           Decimal?  @db.Decimal(5, 2)
+  tier2_min_amount           Decimal?  @db.Decimal(10, 2)
+  tier2_percentage           Decimal?  @db.Decimal(5, 2)
+  ordering_schedule_enabled  Boolean?  @default(true)
+  ordering_start_time        String?   @default("14:00") @db.VarChar(10)
+  ordering_end_time          String?   @default("10:00") @db.VarChar(10)
+  ordering_time_scope        String?   @default("EVERYDAY") @db.VarChar(30)
+  ordering_target_date       String?   @db.VarChar(20)
+}
+
+model ordering_calendar {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_date DateTime  @unique @db.Date
+  is_open    Boolean   @default(true)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+}
+
+model special_offers {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag_name            String?               @db.VarChar(100)
+  title               String                @db.VarChar(150)
+  description         String?
+  image_url           String?
+  price               Decimal?              @db.Decimal(10, 2)
+  offer_enabled       Boolean?              @default(true)
+  offer_price         Decimal?              @db.Decimal(10, 2)
+  start_date          DateTime?             @db.Date
+  end_date            DateTime?             @db.Date
+  available           Boolean?              @default(true)
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  order_items         order_items[]
+  special_offer_items special_offer_items[]
+}
+
+model special_offer_items {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  special_offer_id String         @db.Uuid
+  food_item_id     String         @db.Uuid
+  quantity         Int            @default(1)
+  special_offers   special_offers @relation(fields: [special_offer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  food_items       food_items     @relation(fields: [food_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String    @db.VarChar(100)
+  phone      String?   @db.VarChar(20)
+  email      String    @unique @db.VarChar(150)
+  password   String
+  role       String?   @default("owner") @db.VarChar(30)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}

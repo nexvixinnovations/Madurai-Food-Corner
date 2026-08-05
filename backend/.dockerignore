@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+uploads
+public/uploads
+.env
+.env.local
+.git
+.github
+.vscode
+Dockerfile
+docker-compose.yml
+DEPLOYMENT.md

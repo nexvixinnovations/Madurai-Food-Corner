@@ -1,0 +1,248 @@
+// Prisma Schema for Madurai Food Corner ERP
+// Connected to PostgreSQL on Neon Tech
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+// 1. Users Model (Admin & Staff)
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(150)
+  passwordHash String    @db.VarChar(255)
+  phone        String?   @db.VarChar(20)
+  role         Role      @default(STAFF)
+  isActive     Boolean   @default(true)
+  isDeleted    Boolean   @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ordersProcessed Order[]
+
+  @@map("users")
+}
+
+// 2. Customers Model
+model Customer {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @db.VarChar(100)
+  email     String    @unique @db.VarChar(150)
+  phone     String    @db.VarChar(20)
+  address   String?   @db.Text
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+// 3. Food Items Model
+model FoodItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(150)
+  description String?   @db.Text
+  category    String    @db.VarChar(50)
+  price       Decimal   @db.Decimal(10, 2)
+  isVeg       Boolean   @default(true)
+  isAvailable Boolean   @default(true)
+  imageUrl    String?   @db.Text
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  menuSchedules MenuSchedule[]
+  comboItems    ComboItem[]
+  orderItems    OrderItem[]
+
+  @@map("food_items")
+}
+
+// 4. Menu Schedule Model
+model MenuSchedule {
+  id         String    @id @default(uuid()) @db.Uuid
+  dayOfWeek  String    @db.VarChar(20) // e.g., MONDAY, TUESDAY
+  mealType   String    @db.VarChar(50) // e.g., BREAKFAST, LUNCH, DINNER
+  foodItemId String    @db.Uuid
+  foodItem   FoodItem  @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+  isActive   Boolean   @default(true)
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("menu_schedules")
+}
+
+// 5. Combos Model
+model Combo {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(150)
+  description String?   @db.Text
+  price       Decimal   @db.Decimal(10, 2)
+  imageUrl    String?   @db.Text
+  isAvailable Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  comboItems ComboItem[]
+  orderItems OrderItem[]
+
+  @@map("combos")
+}
+
+// 6. Combo Items Model (Junction Table)
+model ComboItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  comboId    String   @db.Uuid
+  combo      Combo    @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  foodItemId String   @db.Uuid
+  foodItem   FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([comboId, foodItemId])
+  @@map("combo_items")
+}
+
+// 7. Special Offers Model
+model SpecialOffer {
+  id             String    @id @default(uuid()) @db.Uuid
+  title          String    @db.VarChar(150)
+  description    String?   @db.Text
+  code           String    @unique @db.VarChar(50)
+  discountPercent Decimal?  @db.Decimal(5, 2)
+  flatDiscount   Decimal?  @db.Decimal(10, 2)
+  minOrderAmount Decimal   @default(0.00) @db.Decimal(10, 2)
+  maxDiscount    Decimal?  @db.Decimal(10, 2)
+  validFrom      DateTime
+  validUntil     DateTime
+  isActive       Boolean   @default(true)
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orders Order[]
+
+  @@map("special_offers")
+}
+
+// 8. Orders Model
+model Order {
+  id              String         @id @default(uuid()) @db.Uuid
+  orderNumber     String         @unique @db.VarChar(50)
+  customerId      String?        @db.Uuid
+  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  processedById   String?        @db.Uuid
+  processedBy     User?          @relation(fields: [processedById], references: [id], onDelete: SetNull)
+  offerId         String?        @db.Uuid
+  specialOffer    SpecialOffer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  totalAmount     Decimal        @db.Decimal(10, 2)
+  discountAmount  Decimal        @default(0.00) @db.Decimal(10, 2)
+  finalAmount     Decimal        @db.Decimal(10, 2)
+  status          OrderStatus    @default(PENDING)
+  paymentStatus   PaymentStatus  @default(PENDING)
+  orderType       OrderType      @default(DELIVERY)
+  deliveryAddress String?        @db.Text
+  notes           String?        @db.Text
+  isDeleted       Boolean        @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@map("orders")
+}
+
+// 9. Order Items Model
+model OrderItem {
+  id         String    @id @default(uuid()) @db.Uuid
+  orderId    String    @db.Uuid
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  foodItemId String?   @db.Uuid
+  foodItem   FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  comboId    String?   @db.Uuid
+  combo      Combo?    @relation(fields: [comboId], references: [id], onDelete: SetNull)
+  unitPrice  Decimal   @db.Decimal(10, 2)
+  quantity   Int
+  totalPrice Decimal   @db.Decimal(10, 2)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("order_items")
+}
+
+// 10. Payments Model
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderId           String        @db.Uuid
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  razorpayOrderId   String?       @db.VarChar(100)
+  razorpayPaymentId String?       @db.VarChar(100)
+  razorpaySignature String?       @db.VarChar(255)
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("INR") @db.VarChar(10)
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     String?       @db.VarChar(50)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+// 11. Settings Model
+model Setting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @db.VarChar(100)
+  value       String   @db.Text
+  description String?  @db.Text
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@map("settings")
+}
