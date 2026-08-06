@@ -1,5 +1,5 @@
 # Step 1: Base image
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -10,7 +10,7 @@ RUN npm ci --only=production
 RUN npx prisma generate
 
 # Step 3: Production Release
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
