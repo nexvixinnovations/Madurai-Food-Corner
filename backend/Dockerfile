@@ -6,6 +6,7 @@ COPY prisma ./prisma/
 
 # Step 2: Dependencies
 FROM base AS dependencies
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm ci --only=production
 RUN npx prisma generate
 
@@ -13,6 +14,8 @@ RUN npx prisma generate
 FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/prisma ./prisma
