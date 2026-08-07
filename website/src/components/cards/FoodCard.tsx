@@ -64,12 +64,6 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
             )}
           </div>
 
-          {food.preparation_time && (
-            <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-medium text-white flex items-center space-x-1">
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span>{food.preparation_time}m</span>
-            </div>
-          )}
         </div>
       ) : (
         /* Clean Text-Based Header For Items Without Image */
@@ -92,12 +86,6 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
             )}
           </div>
 
-          {food.preparation_time && (
-            <div className="text-[10px] font-medium text-zinc-400 flex items-center space-x-1">
-              <Clock className="w-3 h-3 text-amber-500" />
-              <span>{food.preparation_time}m</span>
-            </div>
-          )}
         </div>
       )}
 

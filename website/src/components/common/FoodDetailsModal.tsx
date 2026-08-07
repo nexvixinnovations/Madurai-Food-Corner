@@ -97,8 +97,6 @@ export const FoodDetailsModal: React.FC<FoodDetailsModalProps> = ({ food, onClos
             {/* Prep Time & Pricing */}
             <div className="flex items-center justify-between">
               <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 space-x-1">
-                <Clock className="w-4 h-4 text-amber-500" />
-                <span>Prep Time: {food.preparation_time || 20} mins</span>
               </div>
 
               <div className="text-right">
