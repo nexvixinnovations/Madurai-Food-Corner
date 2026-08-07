@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Plus, Tag } from 'lucide-react';
+import { Plus, Tag } from 'lucide-react';
 import { FoodItem } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';

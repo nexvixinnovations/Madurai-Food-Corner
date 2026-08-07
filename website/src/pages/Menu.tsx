@@ -11,7 +11,7 @@ import { Search, SlidersHorizontal, Utensils } from 'lucide-react';
 
 export const Menu: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [foodTypeFilter, setFoodTypeFilter] = useState<'All' | 'Veg' | 'Non-Veg' | 'Offers'>('All');
+  const [foodTypeFilter, setFoodTypeFilter] = useState<'All' | 'Veg' | 'Non-Veg'>('All');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
 
@@ -28,7 +28,6 @@ export const Menu: React.FC = () => {
         // Food Type filter (Veg/Non-Veg/Offers)
         if (foodTypeFilter === 'Veg' && food.food_type?.toLowerCase() !== 'veg') return false;
         if (foodTypeFilter === 'Non-Veg' && food.food_type?.toLowerCase() === 'veg') return false;
-        if (foodTypeFilter === 'Offers' && !food.offer_enabled) return false;
 
         // Search Query filter
         if (searchQuery.trim()) {
@@ -101,7 +100,7 @@ export const Menu: React.FC = () => {
 
           {/* Swipeable Horizontal Filter Chips */}
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none pt-1">
-            {(['All', 'Veg', 'Non-Veg', 'Offers'] as const).map((type) => (
+            {(['All', 'Veg', 'Non-Veg'] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setFoodTypeFilter(type)}

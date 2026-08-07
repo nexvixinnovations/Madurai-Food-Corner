@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, ShoppingBag, Plus, Minus, Tag } from 'lucide-react';
+import { X, ShoppingBag, Plus, Minus, Tag } from 'lucide-react';
 import { FoodItem } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
