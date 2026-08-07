@@ -11,11 +11,14 @@ const validateCreateOrder = (data) => {
   if (!data.customer || typeof data.customer !== 'object') {
     errors.customer = 'Customer details object is required.';
   } else {
-    if (!data.customer.name || typeof data.customer.name !== 'string' || !data.customer.name.trim()) {
-      errors['customer.name'] = 'Customer name is required.';
-    }
-    if (!data.customer.phone || typeof data.customer.phone !== 'string' || !data.customer.phone.trim()) {
-      errors['customer.phone'] = 'Customer phone number is required.';
+    const isShop = data.order_source && ['POS Counter', 'Shop'].includes(data.order_source.trim());
+    if (!isShop) {
+      if (!data.customer.name || typeof data.customer.name !== 'string' || !data.customer.name.trim()) {
+        errors['customer.name'] = 'Customer name is required.';
+      }
+      if (!data.customer.phone || typeof data.customer.phone !== 'string' || !data.customer.phone.trim()) {
+        errors['customer.phone'] = 'Customer phone number is required.';
+      }
     }
   }
 
@@ -34,8 +37,8 @@ const validateCreateOrder = (data) => {
   } else {
     const itemErrors = [];
     data.items.forEach((item, index) => {
-      if (!item.type || !['food', 'combo'].includes(item.type.toLowerCase())) {
-        itemErrors.push(`Item at index ${index} must have type 'food' or 'combo'.`);
+      if (!item.type || !['food', 'combo', 'offer'].includes(item.type.toLowerCase())) {
+        itemErrors.push(`Item at index ${index} must have type 'food', 'combo', or 'offer'.`);
       }
       if (!item.id || !isValidUuid(item.id)) {
         itemErrors.push(`Item at index ${index} must have a valid item id UUID.`);

@@ -120,6 +120,9 @@ class SettingsService {
     if (data.ordering_end_time !== undefined) updateData.ordering_end_time = data.ordering_end_time ? String(data.ordering_end_time).trim() : null;
     if (data.ordering_time_scope !== undefined) updateData.ordering_time_scope = data.ordering_time_scope ? String(data.ordering_time_scope).trim() : 'EVERYDAY';
     if (data.ordering_target_date !== undefined) updateData.ordering_target_date = data.ordering_target_date ? String(data.ordering_target_date).trim() : null;
+    
+    if (data.website_order_window_start !== undefined) updateData.website_order_window_start = data.website_order_window_start ? String(data.website_order_window_start).trim() : null;
+    if (data.website_order_window_end !== undefined) updateData.website_order_window_end = data.website_order_window_end ? String(data.website_order_window_end).trim() : null;
 
     try {
       const updatedSettings = await prisma.settings.update({

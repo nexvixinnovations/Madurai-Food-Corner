@@ -58,6 +58,9 @@ fun SettingsScreen(
     val orderingEndTime by viewModel.orderingEndTime.collectAsState()
     val orderingTimeScope by viewModel.orderingTimeScope.collectAsState()
 
+    val websiteOrderWindowStart by viewModel.websiteOrderWindowStart.collectAsState()
+    val websiteOrderWindowEnd by viewModel.websiteOrderWindowEnd.collectAsState()
+
     val isSaving by viewModel.isSaving.collectAsState()
     val context = LocalContext.current
 
@@ -321,6 +324,33 @@ fun SettingsScreen(
                                     )
                                 }
 
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Website Orders Day Grouping Window (Used for display grouping only)",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = websiteOrderWindowStart,
+                                        onValueChange = { viewModel.setWebsiteOrderWindowStart(it) },
+                                        label = { Text("Website Order Window Start") },
+                                        placeholder = { Text("14:00") },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = websiteOrderWindowEnd,
+                                        onValueChange = { viewModel.setWebsiteOrderWindowEnd(it) },
+                                        label = { Text("Website Order Window End") },
+                                        placeholder = { Text("11:15") },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Repeat Schedule Scope:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -484,7 +514,11 @@ fun SettingsScreen(
                             enabled = !isSaving
                         ) {
                             if (isSaving) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Gray, strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Saving, please wait...", fontWeight = FontWeight.Bold, color = Color.Gray)
+                                }
                             } else {
                                 Icon(Icons.Default.Save, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))

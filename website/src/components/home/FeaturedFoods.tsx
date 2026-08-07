@@ -13,10 +13,10 @@ interface FeaturedFoodsProps {
 
 export const FeaturedFoods: React.FC<FeaturedFoodsProps> = ({ foods, isLoading, onOpenDetails }) => {
   return (
-    <section className="py-16 bg-brand-cream dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-10 md:py-16 bg-brand-cream dark:bg-zinc-950">
+      <div className="max-w-7xl mx-auto pl-4 pr-0 sm:px-6 lg:px-8">
         {/* Section Title */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 md:mb-12 pr-4 sm:pr-0">
           <div>
             <div className="inline-flex items-center space-x-1 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">
               <Flame className="w-4 h-4 text-amber-500" />
@@ -38,9 +38,11 @@ export const FeaturedFoods: React.FC<FeaturedFoodsProps> = ({ foods, isLoading, 
 
         {/* Grid Display */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex overflow-x-auto pb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 snap-x snap-mandatory scrollbar-none pr-4 sm:pr-0">
             {[1, 2, 3, 4].map((n) => (
-              <FoodCardSkeleton key={n} />
+              <div key={n} className="min-w-[85vw] sm:min-w-0 flex-none snap-start">
+                <FoodCardSkeleton />
+              </div>
             ))}
           </div>
         ) : foods.length === 0 ? (
@@ -48,9 +50,11 @@ export const FeaturedFoods: React.FC<FeaturedFoodsProps> = ({ foods, isLoading, 
             No featured food items available right now.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex overflow-x-auto pb-6 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 snap-x snap-mandatory scrollbar-none pr-4 sm:pr-0">
             {foods.slice(0, 8).map((food) => (
-              <FoodCard key={food.id} food={food} onOpenDetails={onOpenDetails} />
+              <div key={food.id} className="min-w-[85vw] sm:min-w-0 flex-none snap-start">
+                <FoodCard food={food} onOpenDetails={onOpenDetails} />
+              </div>
             ))}
           </div>
         )}

@@ -21,9 +21,9 @@ export const WhyChooseUs: React.FC = () => {
   ];
 
   return (
-    <section className="py-20 bg-brand-cream dark:bg-zinc-950">
+    <section className="py-10 md:py-20 bg-brand-cream dark:bg-zinc-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="text-center max-w-2xl mx-auto mb-8 md:mb-16">
           <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
             The Madurai Promise
           </span>

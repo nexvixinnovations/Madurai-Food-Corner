@@ -37,13 +37,23 @@ fun ReportsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showPinDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var selectedPreset by remember { mutableStateOf("today") }
+    var isExporting by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     ) { uri: Uri? ->
         if (uri != null) {
-            writeSampleExcelReport(context, uri)
-            Toast.makeText(context, "Report exported to Excel successfully!", Toast.LENGTH_LONG).show()
+            isExporting = true
+            viewModel.exportReportToUri(context, selectedPreset, uri) { success, error ->
+                isExporting = false
+                if (success) {
+                    Toast.makeText(context, "Report exported successfully!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Failed to export: $error", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -99,12 +109,17 @@ fun ReportsScreen(
                         ) {
                             Text(text = "Performance Metrics", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Button(
-                                onClick = { exportLauncher.launch("MFC_Sales_Report_${System.currentTimeMillis()}.xlsx") },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
+                                onClick = { showExportDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
+                                enabled = !isExporting
                             ) {
-                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                if (isExporting) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Export Excel", fontSize = 12.sp)
+                                Text(if (isExporting) "Exporting..." else "Export Excel", fontSize = 12.sp)
                             }
                         }
 
@@ -177,49 +192,7 @@ fun ReportsScreen(
                             )
                         }
 
-                        // Metric Grid 4: Average Order Value (AOV - Protected)
-                        ProtectedRevenueCardFullWidth(
-                            title = "Average Order Value (AOV)",
-                            value = "₹${report.averageOrderValue.toInt()}",
-                            isUnlocked = state.isTodayRevenueUnlocked,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            onUnlockClick = { showPinDialog = true }
-                        )
 
-                        // Metric Grid 5: Top Selling Food & Most Ordered Category
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text(text = "Sales Highlights", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.RestaurantMenu, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text("Top Selling Food Item", fontSize = 12.sp, color = Color.Gray)
-                                        Text(report.topSellingFood, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                    }
-                                }
-
-                                Divider()
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text("Most Ordered Category", fontSize = 12.sp, color = Color.Gray)
-                                        Text(report.mostOrderedCategory, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -236,6 +209,17 @@ fun ReportsScreen(
                     } else {
                         Toast.makeText(context, "Incorrect Password!", Toast.LENGTH_SHORT).show()
                     }
+                }
+            )
+        }
+
+        if (showExportDialog) {
+            ExportPresetDialog(
+                onDismiss = { showExportDialog = false },
+                onSelectPreset = { preset, filename ->
+                    showExportDialog = false
+                    selectedPreset = preset
+                    exportLauncher.launch(filename)
                 }
             )
         }
@@ -310,45 +294,49 @@ fun ProtectedRevenueCard(
 }
 
 @Composable
-fun ProtectedRevenueCardFullWidth(
-    title: String,
-    value: String,
-    isUnlocked: Boolean,
-    containerColor: Color,
-    onUnlockClick: () -> Unit
+fun ExportPresetDialog(
+    onDismiss: () -> Unit,
+    onSelectPreset: (String, String) -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { if (!isUnlocked) onUnlockClick() }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(text = title, fontSize = 12.sp, color = Color.DarkGray)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isUnlocked) value else "₹ ••••",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Excel", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select date range to export:", fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val dateString = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                        onSelectPreset("today", "MFC-Sales-Today-$dateString.xlsx")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Today") }
+                
+                Button(
+                    onClick = {
+                        val monthString = java.text.SimpleDateFormat("MMM-yyyy", java.util.Locale.getDefault()).format(java.util.Date())
+                        onSelectPreset("month", "MFC-Sales-$monthString.xlsx")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("This Month") }
+                
+                Button(
+                    onClick = {
+                        val yearString = java.text.SimpleDateFormat("yyyy", java.util.Locale.getDefault()).format(java.util.Date())
+                        onSelectPreset("year", "MFC-Sales-Year$yearString.xlsx")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Total (This Year)") }
             }
-            Icon(
-                imageVector = if (isUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
-                contentDescription = title,
-                tint = if (isUnlocked) Color(0xFF2E7D32) else Color(0xFFC62828),
-                modifier = Modifier.size(24.dp)
-            )
+        },
+        confirmButton = { },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
-    }
+    )
 }
 
 @Composable
@@ -385,17 +373,4 @@ fun PinPasswordDialog(
             }
         }
     )
-}
-
-private fun writeSampleExcelReport(context: Context, uri: Uri) {
-    try {
-        context.contentResolver.openOutputStream(uri)?.use { stream ->
-            val excelHeader = "Order Number\tDate\tCustomer Name\tPhone\tItems\tQuantity\tAmount\tPayment Status\tOrder Status\n"
-            val sampleRow1 = "MFC-22-07-001\t2026-07-22\tRahul Kumar\t9876543210\tChicken Biryani\t2\t360\tPaid\tAccepted\n"
-            val sampleRow2 = "MFC-22-07-002\t2026-07-22\tPriya Sharma\t9123456780\tPaneer Butter Masala\t1\t220\tPaid\tPending\n"
-            stream.write((excelHeader + sampleRow1 + sampleRow2).toByteArray(Charsets.UTF_8))
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
 }

@@ -28,57 +28,17 @@ object NetworkModule {
         }
     }
 
-    @Provides
-    @Singleton
-    fun provideDynamicHostInterceptor(): Interceptor {
-        return Interceptor { chain ->
-            var request = chain.request()
-            try {
-                val context = AdminApp.instance
-                val prefs = context.getSharedPreferences(Constants.PREF_NAME, Context.MODE_PRIVATE)
-                val savedIp = prefs.getString("server_ip", null)
-                if (!savedIp.isNullOrBlank()) {
-                    var cleanIp = savedIp.trim()
-                    if (cleanIp.startsWith("http://")) cleanIp = cleanIp.substring(7)
-                    if (cleanIp.startsWith("https://")) cleanIp = cleanIp.substring(8)
-                    val slashIdx = cleanIp.indexOf('/')
-                    if (slashIdx != -1) cleanIp = cleanIp.substring(0, slashIdx)
-
-                    var newHost = cleanIp
-                    var newPort = 5000
-                    if (cleanIp.contains(":")) {
-                        val parts = cleanIp.split(":")
-                        newHost = parts[0]
-                        newPort = parts[1].toIntOrNull() ?: 5000
-                    }
-
-                    if (newHost.isNotBlank()) {
-                        val newUrl = request.url.newBuilder()
-                            .host(newHost)
-                            .port(newPort)
-                            .build()
-                        request = request.newBuilder().url(newUrl).build()
-                    }
-                }
-            } catch (e: Exception) {
-                // Fallback to default request URL
-            }
-            chain.proceed(request)
-        }
-    }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        loggingInterceptor: HttpLoggingInterceptor,
-        dynamicHostInterceptor: Interceptor
+        loggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(dynamicHostInterceptor)
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 

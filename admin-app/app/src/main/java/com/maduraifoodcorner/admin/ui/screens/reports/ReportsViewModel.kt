@@ -56,4 +56,33 @@ class ReportsViewModel @Inject constructor(
             false
         }
     }
+
+    fun exportReportToUri(context: android.content.Context, preset: String, uri: android.net.Uri, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = repository.exportReport(preset)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        try {
+                            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                                body.byteStream().use { inputStream ->
+                                    inputStream.copyTo(outputStream)
+                                }
+                            }
+                            onResult(true, null)
+                        } catch (e: Exception) {
+                            onResult(false, e.message)
+                        }
+                    } else {
+                        onResult(false, "Empty response body")
+                    }
+                } else {
+                    onResult(false, "Failed to download report")
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message)
+            }
+        }
+    }
 }

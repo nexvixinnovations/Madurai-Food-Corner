@@ -369,6 +369,10 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
         }
     }
 
+    suspend fun exportReport(preset: String): retrofit2.Response<okhttp3.ResponseBody> = withContext(Dispatchers.IO) {
+        apiService.exportReport(type = "orders", format = "excel", preset = preset)
+    }
+
     suspend fun getSettings(): Result<RestaurantSettings> = withContext(Dispatchers.IO) {
         try {
             val res = apiService.getSettings()

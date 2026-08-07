@@ -58,23 +58,23 @@ export const Navbar: React.FC = () => {
     <header className="sticky top-0 z-50 w-full text-white shadow-xl">
       {/* Daily Ordering Acceptance Window Banner */}
       {scheduleBannerText && (
-        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-brand-maroon px-4 py-1.5 text-center text-xs font-black tracking-wide flex items-center justify-center space-x-2 shadow-md border-b border-amber-600/30">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-          <span>📢 {scheduleBannerText}</span>
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-brand-maroon px-2 sm:px-4 py-1 sm:py-1.5 text-center text-[10px] sm:text-xs font-black tracking-wide flex items-center justify-center space-x-1 sm:space-x-2 shadow-md border-b border-amber-600/30">
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse shrink-0" />
+          <span className="truncate sm:whitespace-normal">📢 {scheduleBannerText}</span>
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse shrink-0" />
         </div>
       )}
 
       {/* Dynamic Order Value Discount Advertisement Banner (Auto-Advertised from Backend Settings) */}
       {offerAdText && (
-        <div className="bg-gradient-to-r from-brand-maroon via-[#5C1A0F] to-brand-maroon text-amber-400 px-4 py-2 text-center shadow-md">
-          <div className="flex items-center justify-center space-x-2 text-xs font-black tracking-wide">
-            <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-            <span>{offerAdText}</span>
-            <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+        <div className="bg-gradient-to-r from-brand-maroon via-[#5C1A0F] to-brand-maroon text-amber-400 px-2 sm:px-4 py-1.5 sm:py-2 text-center shadow-md">
+          <div className="flex items-center justify-center space-x-1.5 sm:space-x-2 text-[10px] sm:text-xs font-black tracking-wide">
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse text-amber-400 shrink-0" />
+            <span className="truncate sm:whitespace-normal">{offerAdText}</span>
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse text-amber-400 shrink-0" />
           </div>
           {offerAdSubtext && (
-            <p className="text-[10px] text-amber-300/70 mt-0.5 font-normal tracking-normal">
+            <p className="text-[8px] sm:text-[10px] text-amber-300/70 mt-0.5 font-normal tracking-normal truncate sm:whitespace-normal">
               {offerAdSubtext}
             </p>
           )}
@@ -82,7 +82,7 @@ export const Navbar: React.FC = () => {
       )}
 
       {/* Top Contact Bar */}
-      <div className="bg-[#120704] border-b border-amber-500/20 text-[#f59e0b] px-4 py-1.5 text-xs font-semibold">
+      <div className="hidden sm:block bg-[#120704] border-b border-amber-500/20 text-[#f59e0b] px-4 py-1.5 text-xs font-semibold">
         <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center space-x-5 text-amber-200/90">
             <span className="flex items-center space-x-1.5">
@@ -90,7 +90,7 @@ export const Navbar: React.FC = () => {
               <span>9952250435 / 7708382018</span>
             </span>
           </div>
-          <div className="hidden sm:block tracking-widest uppercase font-bold text-[10px] text-amber-400/80">
+          <div className="hidden md:block tracking-widest uppercase font-bold text-[10px] text-amber-400/80">
             Authentic South Indian Cuisine
           </div>
         </div>
@@ -101,20 +101,20 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo & Brand Name */}
-            <Link to="/" className="flex items-center space-x-3.5 group">
+            <Link to="/" className="flex items-center space-x-2 sm:space-x-3.5 group">
               <div className="relative">
                 <img
                   src="/logo.png"
                   alt="Madurai Food Corner Logo"
-                  className="w-12 h-12 rounded-full border-2 border-amber-400 object-cover shadow-lg group-hover:scale-105 transition-transform"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-amber-400 object-cover shadow-lg group-hover:scale-105 transition-transform"
                 />
                 <div className="absolute inset-0 rounded-full ring-2 ring-amber-400/30 ring-offset-1 ring-offset-black pointer-events-none" />
               </div>
               <div className="flex flex-col">
-                <span className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-amber-400 group-hover:text-amber-300 transition-colors">
+                <span className="font-serif text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-amber-400 group-hover:text-amber-300 transition-colors leading-tight">
                   Madurai Food Corner
                 </span>
-                <span className="text-[10px] text-amber-200/80 uppercase tracking-widest -mt-0.5 font-bold">
+                <span className="text-[8px] sm:text-[10px] text-amber-200/80 uppercase tracking-widest sm:-mt-0.5 font-bold">
                   Restaurant & Catering
                 </span>
               </div>

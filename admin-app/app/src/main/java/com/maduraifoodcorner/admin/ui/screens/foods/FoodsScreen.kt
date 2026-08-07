@@ -82,6 +82,7 @@ fun FoodsScreen(
     viewModel: FoodsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val updatingIds by viewModel.updatingIds.collectAsState()
     var showTypePickerModal by remember { mutableStateOf(false) }
     var showAddFoodDialog by remember { mutableStateOf(false) }
     var showAddComboDialog by remember { mutableStateOf(false) }
@@ -175,7 +176,7 @@ fun FoodsScreen(
                         ) {
                             // 1. Render Combos when "Combos" or "All" selected
                             if (selectedCategory == "Combos" || selectedCategory == "All") {
-                                items(state.combos) { combo ->
+                                items(state.combos, key = { it.id }) { combo ->
                                     ComboCardRow(
                                         combo = combo,
                                         onToggleStatus = { viewModel.toggleComboStatus(combo.id, combo.available) },
@@ -186,7 +187,7 @@ fun FoodsScreen(
 
                             // 2. Render Offers when "Offers" or "All" selected
                             if (selectedCategory == "Offers" || selectedCategory == "All") {
-                                items(state.offers) { offer ->
+                                items(state.offers, key = { it.id }) { offer ->
                                     OfferCardRow(
                                         offer = offer,
                                         onToggleStatus = { viewModel.toggleOfferStatus(offer.id, offer.available) },
@@ -198,9 +199,11 @@ fun FoodsScreen(
                             // 3. Render Food Items when specific category or "All" selected
                             if (selectedCategory != "Combos" && selectedCategory != "Offers") {
                                 val foodListToRender = if (selectedCategory == "All") state.foods else filteredFoods
-                                items(foodListToRender) { food ->
+                                items(foodListToRender, key = { it.id }) { food ->
+                                    val isUpdating = updatingIds.contains(food.id)
                                     FoodCardRow(
                                         food = food,
+                                        isUpdating = isUpdating,
                                         onEdit = { editingFoodItem = food },
                                         onToggleStatus = { viewModel.toggleFoodStatus(food.id, food.available) },
                                         onDelete = { viewModel.deleteFood(food.id) }
@@ -380,6 +383,7 @@ fun FoodsScreen(
 @Composable
 fun FoodCardRow(
     food: FoodItem,
+    isUpdating: Boolean = false,
     onEdit: () -> Unit,
     onToggleStatus: () -> Unit,
     onDelete: () -> Unit
@@ -467,6 +471,10 @@ fun FoodCardRow(
 
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isUpdating) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     Text(
                         text = if (food.available) "ON" else "OFF",
                         fontSize = 11.sp,
@@ -476,7 +484,8 @@ fun FoodCardRow(
                     Spacer(modifier = Modifier.width(4.dp))
                     Switch(
                         checked = food.available,
-                        onCheckedChange = { onToggleStatus() }
+                        onCheckedChange = { onToggleStatus() },
+                        enabled = !isUpdating
                     )
                 }
                 Row {

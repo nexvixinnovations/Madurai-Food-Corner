@@ -152,6 +152,8 @@ model settings {
   ordering_end_time          String?   @default("10:00") @db.VarChar(10)
   ordering_time_scope        String?   @default("EVERYDAY") @db.VarChar(30)
   ordering_target_date       String?   @db.VarChar(20)
+  website_order_window_start String?   @default("14:00") @db.VarChar(10)
+  website_order_window_end   String?   @default("11:15") @db.VarChar(10)
 }
 
 model ordering_calendar {

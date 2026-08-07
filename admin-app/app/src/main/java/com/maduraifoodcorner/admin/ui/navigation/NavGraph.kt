@@ -9,15 +9,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.maduraifoodcorner.admin.ui.screens.about.AboutScreen
 import com.maduraifoodcorner.admin.ui.screens.billing.BillingScreen
-import com.maduraifoodcorner.admin.ui.screens.combos.CombosScreen
 import com.maduraifoodcorner.admin.ui.screens.dashboard.DashboardScreen
 import com.maduraifoodcorner.admin.ui.screens.foods.FoodsScreen
-import com.maduraifoodcorner.admin.ui.screens.menu.MenuScheduleScreen
-import com.maduraifoodcorner.admin.ui.screens.notifications.NotificationsScreen
-import com.maduraifoodcorner.admin.ui.screens.offers.SpecialOffersScreen
 import com.maduraifoodcorner.admin.ui.screens.orders.OrderDetailsScreen
 import com.maduraifoodcorner.admin.ui.screens.orders.OrdersScreen
-import com.maduraifoodcorner.admin.ui.screens.payments.PaymentsScreen
 import com.maduraifoodcorner.admin.ui.screens.printer.PrinterSettingsScreen
 import com.maduraifoodcorner.admin.ui.screens.reports.ReportsScreen
 import com.maduraifoodcorner.admin.ui.screens.settings.SettingsScreen
@@ -69,32 +64,12 @@ fun NavGraph(
             BillingScreen(onOpenDrawer = onOpenDrawer)
         }
 
-        composable(Screen.MenuSchedule.route) {
-            MenuScheduleScreen(onOpenDrawer = onOpenDrawer)
-        }
-
-        composable(Screen.Combos.route) {
-            CombosScreen(onOpenDrawer = onOpenDrawer)
-        }
-
-        composable(Screen.SpecialOffers.route) {
-            SpecialOffersScreen(onOpenDrawer = onOpenDrawer)
-        }
-
-        composable(Screen.Payments.route) {
-            PaymentsScreen(onOpenDrawer = onOpenDrawer)
-        }
-
         composable(Screen.Reports.route) {
             ReportsScreen(onOpenDrawer = onOpenDrawer)
         }
 
         composable(Screen.Settings.route) {
             SettingsScreen(onOpenDrawer = onOpenDrawer)
-        }
-
-        composable(Screen.Notifications.route) {
-            NotificationsScreen(onOpenDrawer = onOpenDrawer)
         }
 
         composable(Screen.PrinterSettings.route) {

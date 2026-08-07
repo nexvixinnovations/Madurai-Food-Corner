@@ -118,8 +118,6 @@ class ReportService {
       todayOrdersAgg,
       weekOrdersAgg,
       monthOrdersAgg,
-      topFoodGroup,
-      topCategoryGroup,
     ] = await Promise.all([
       prisma.orders.aggregate({
         _count: { id: true },
@@ -136,17 +134,6 @@ class ReportService {
         _sum: { total_amount: true },
         where: { created_at: { gte: month.start, lte: month.end }, status: { notIn: ['Cancelled', 'cancelled'] } },
       }),
-      prisma.order_items.groupBy({
-        by: ['food_item_id'],
-        _sum: { quantity: true, line_total: true },
-        where: { food_item_id: { not: null }, orders: { status: { notIn: ['Cancelled', 'cancelled'] } } },
-        orderBy: { _sum: { quantity: 'desc' } },
-        take: 1,
-      }),
-      prisma.order_items.findMany({
-        where: { food_item_id: { not: null }, orders: { status: { notIn: ['Cancelled', 'cancelled'] } } },
-        include: { food_items: true },
-      }),
     ]);
 
     const todayOrders = todayOrdersAgg._count.id || 0;
@@ -158,35 +145,6 @@ class ReportService {
     const monthlyOrders = monthOrdersAgg._count.id || 0;
     const monthlyRevenue = parseFloat(monthOrdersAgg._sum.total_amount || 0);
 
-    const avgOrderValue = monthlyOrders > 0
-      ? parseFloat((monthlyRevenue / monthlyOrders).toFixed(2))
-      : (todayOrders > 0 ? parseFloat((todayRevenue / todayOrders).toFixed(2)) : 0);
-
-    let topSellingFood = "N/A";
-    if (topFoodGroup.length > 0 && topFoodGroup[0].food_item_id) {
-      const food = await prisma.food_items.findUnique({ where: { id: topFoodGroup[0].food_item_id } });
-      if (food) {
-        topSellingFood = `${food.name} (${topFoodGroup[0]._sum.quantity || 0} sold)`;
-      }
-    }
-
-    const categoryCounts = {};
-    topCategoryGroup.forEach((item) => {
-      if (item.food_items && item.food_items.category) {
-        const cat = item.food_items.category;
-        categoryCounts[cat] = (categoryCounts[cat] || 0) + (item.quantity || 1);
-      }
-    });
-
-    let mostOrderedCategory = "General";
-    let maxCatCount = 0;
-    Object.entries(categoryCounts).forEach(([cat, count]) => {
-      if (count > maxCatCount) {
-        maxCatCount = count;
-        mostOrderedCategory = `${cat} (${count} items)`;
-      }
-    });
-
     return {
       todayOrders,
       todayRevenue,
@@ -194,9 +152,9 @@ class ReportService {
       weeklyRevenue,
       monthlyOrders,
       monthlyRevenue,
-      averageOrderValue: avgOrderValue,
-      topSellingFood,
-      mostOrderedCategory,
+      averageOrderValue: 0,
+      topSellingFood: "N/A",
+      mostOrderedCategory: "N/A",
     };
   }
 

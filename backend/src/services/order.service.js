@@ -84,6 +84,16 @@ class OrderService {
       const parsedReqDate = this.parseDate(required_date);
       if (parsedReqDate) {
         where.required_date = parsedReqDate;
+        
+        // 3 PM Clearing Logic: If today's orders are requested, and it's past 3 PM, clear the display.
+        const now = new Date();
+        const todayUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        const isToday = parsedReqDate.getTime() === todayUtc.getTime();
+        
+        if (isToday && now.getHours() >= 15) {
+          // Force empty result to clear the display in the admin app
+          where.id = 'cleared_after_3pm';
+        }
       }
     }
 
@@ -231,8 +241,8 @@ class OrderService {
     // 2. Generate Sequential Order Number by Channel (MFCW for website, MFCS for shop/POS)
     const orderNumber = await this.generateOrderNumber(data.order_source);
 
-    const customerPhone = data.customer.phone.trim();
-    const customerName = data.customer.name.trim();
+    const customerPhone = (data.customer.phone && data.customer.phone.trim()) ? data.customer.phone.trim() : '9999999999';
+    const customerName = (data.customer.name && data.customer.name.trim()) ? data.customer.name.trim() : 'Counter Customer';
     const customerEmail = data.customer.email ? data.customer.email.trim() : null;
 
     // 3. Execute Database Transaction for Customer, Order Header, Order Items, & Initial Payment

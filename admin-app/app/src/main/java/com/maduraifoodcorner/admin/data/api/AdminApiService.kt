@@ -130,6 +130,14 @@ interface AdminApiService {
     @GET("admin/reports")
     suspend fun getBusinessOverviewReport(@Query("type") type: String = "overview"): Response<ApiResponse<BusinessOverviewReport>>
 
+    @Streaming
+    @GET("admin/reports/export")
+    suspend fun exportReport(
+        @Query("type") type: String = "orders",
+        @Query("format") format: String = "excel",
+        @Query("preset") preset: String
+    ): Response<okhttp3.ResponseBody>
+
     // Settings
     @GET("admin/settings")
     suspend fun getSettings(): Response<ApiResponse<RestaurantSettings>>

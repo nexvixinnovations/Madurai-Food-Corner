@@ -69,11 +69,29 @@ class FoodsViewModel @Inject constructor(
         }
     }
 
+    private val _updatingIds = MutableStateFlow<Set<String>>(emptySet())
+    val updatingIds: StateFlow<Set<String>> = _updatingIds.asStateFlow()
+
     fun toggleFoodStatus(foodId: String, currentAvailable: Boolean) {
-        viewModelScope.launch {
-            repository.toggleFoodStatus(foodId, !currentAvailable)
-                .onSuccess { loadFoods() }
-                .onFailure { error -> _toastMessage.emit(error.message ?: "Failed to toggle status") }
+        val currentState = _uiState.value
+        if (currentState is FoodsState.Success) {
+            val updatedFoods = currentState.foods.map {
+                if (it.id == foodId) it.copy(available = !currentAvailable) else it
+            }
+            _uiState.value = currentState.copy(foods = updatedFoods)
+            _updatingIds.value = _updatingIds.value + foodId
+
+            viewModelScope.launch {
+                repository.toggleFoodStatus(foodId, !currentAvailable)
+                    .onSuccess {
+                        _updatingIds.value = _updatingIds.value - foodId
+                    }
+                    .onFailure { error ->
+                        _uiState.value = currentState
+                        _updatingIds.value = _updatingIds.value - foodId
+                        _toastMessage.emit(error.message ?: "Failed to toggle status")
+                    }
+            }
         }
     }
 

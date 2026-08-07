@@ -29,6 +29,9 @@ class OrdersViewModel @Inject constructor(
 
     private val _printStatus = MutableStateFlow<String?>(null)
     val printStatus: StateFlow<String?> = _printStatus
+    
+    private val _settings = MutableStateFlow<com.maduraifoodcorner.admin.data.model.RestaurantSettings?>(null)
+    val settings: StateFlow<com.maduraifoodcorner.admin.data.model.RestaurantSettings?> = _settings
 
     init {
         loadOrders()
@@ -37,6 +40,7 @@ class OrdersViewModel @Inject constructor(
     fun loadOrders(status: String? = null) {
         viewModelScope.launch {
             _uiState.value = OrdersState.Loading
+            repository.getSettings().onSuccess { s -> _settings.value = s }
             repository.getOrders(status)
                 .onSuccess { orders ->
                     _uiState.value = OrdersState.Success(orders)

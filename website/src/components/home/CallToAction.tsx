@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 export const CallToAction: React.FC = () => {
   return (
-    <section className="py-20 bg-gradient-to-r from-brand-maroon via-brand-maroon-dark to-black text-white relative overflow-hidden">
+    <section className="py-12 md:py-20 bg-gradient-to-r from-brand-maroon via-brand-maroon-dark to-black text-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="max-w-3xl mx-auto space-y-6">
           <img

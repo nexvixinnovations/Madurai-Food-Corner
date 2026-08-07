@@ -27,7 +27,9 @@ data class RestaurantSettings(
     val ordering_start_time: String? = "14:00",
     val ordering_end_time: String? = "10:00",
     val ordering_time_scope: String? = "EVERYDAY",
-    val ordering_target_date: String? = null
+    val ordering_target_date: String? = null,
+    val website_order_window_start: String? = "14:00",
+    val website_order_window_end: String? = "11:15"
 )
 
 data class CalendarDateItem(

@@ -30,13 +30,8 @@ fun AppDrawerContent(
         Screen.Dashboard to Icons.Default.Dashboard,
         Screen.Orders to Icons.Default.ShoppingCart,
         Screen.Foods to Icons.Default.RestaurantMenu,
-        Screen.MenuSchedule to Icons.Default.CalendarMonth,
-        Screen.Combos to Icons.Default.TakeoutDining,
-        Screen.SpecialOffers to Icons.Default.LocalOffer,
-        Screen.Payments to Icons.Default.Payments,
         Screen.Reports to Icons.Default.BarChart,
         Screen.Settings to Icons.Default.Settings,
-        Screen.Notifications to Icons.Default.Notifications,
         Screen.PrinterSettings to Icons.Default.Print,
         Screen.About to Icons.Default.Info
     )

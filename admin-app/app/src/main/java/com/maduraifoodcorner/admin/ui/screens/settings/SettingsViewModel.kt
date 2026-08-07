@@ -68,6 +68,12 @@ class SettingsViewModel @Inject constructor(
     private val _orderingTimeScope = MutableStateFlow("EVERYDAY")
     val orderingTimeScope: StateFlow<String> = _orderingTimeScope.asStateFlow()
 
+    private val _websiteOrderWindowStart = MutableStateFlow("14:00")
+    val websiteOrderWindowStart: StateFlow<String> = _websiteOrderWindowStart.asStateFlow()
+
+    private val _websiteOrderWindowEnd = MutableStateFlow("11:15")
+    val websiteOrderWindowEnd: StateFlow<String> = _websiteOrderWindowEnd.asStateFlow()
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
@@ -103,6 +109,9 @@ class SettingsViewModel @Inject constructor(
                 _orderingStartTime.value = settings.ordering_start_time ?: "14:00"
                 _orderingEndTime.value = settings.ordering_end_time ?: "10:00"
                 _orderingTimeScope.value = settings.ordering_time_scope ?: "EVERYDAY"
+                
+                _websiteOrderWindowStart.value = settings.website_order_window_start ?: "14:00"
+                _websiteOrderWindowEnd.value = settings.website_order_window_end ?: "11:15"
 
                 try {
                     val listType = object : TypeToken<List<String>>() {}.type
@@ -138,6 +147,9 @@ class SettingsViewModel @Inject constructor(
     fun setOrderingStartTime(timeStr: String) { _orderingStartTime.value = timeStr }
     fun setOrderingEndTime(timeStr: String) { _orderingEndTime.value = timeStr }
     fun setOrderingTimeScope(scopeStr: String) { _orderingTimeScope.value = scopeStr }
+
+    fun setWebsiteOrderWindowStart(timeStr: String) { _websiteOrderWindowStart.value = timeStr }
+    fun setWebsiteOrderWindowEnd(timeStr: String) { _websiteOrderWindowEnd.value = timeStr }
 
     fun toggleDisabledDate(dateIsoStr: String) {
         val current = _disabledDates.value.toMutableSet()
@@ -178,7 +190,9 @@ class SettingsViewModel @Inject constructor(
                 ordering_schedule_enabled = _orderingScheduleEnabled.value,
                 ordering_start_time = _orderingStartTime.value.trim(),
                 ordering_end_time = _orderingEndTime.value.trim(),
-                ordering_time_scope = _orderingTimeScope.value
+                ordering_time_scope = _orderingTimeScope.value,
+                website_order_window_start = _websiteOrderWindowStart.value.trim(),
+                website_order_window_end = _websiteOrderWindowEnd.value.trim()
             )
 
             val settingsResult = repository.updateSettings(updatedSettings)

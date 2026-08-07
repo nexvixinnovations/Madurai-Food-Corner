@@ -297,12 +297,13 @@ fun BillingScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 // ─── Order Value Discount Breakdown ──────────────────
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    color = MaterialTheme.colorScheme.surface,
                                     shape = RoundedCornerShape(12.dp),
+                                    shadowElevation = 8.dp,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -310,9 +311,9 @@ fun BillingScreen(
                                         if (eligibleSubtotal > 0) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("Regular & Combo:", fontSize = 12.sp, color = Color.Gray)
+                                                Text("Regular & Combo:", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(1f))
                                                 Text("₹${"%.2f".format(eligibleSubtotal)}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                             }
                                         }
@@ -321,9 +322,9 @@ fun BillingScreen(
                                         if (specialOfferSubtotal > 0) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("Special Offers:", fontSize = 12.sp, color = Color.Gray)
+                                                Text("Special Offers:", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(1f))
                                                 Text("₹${"%.2f".format(specialOfferSubtotal)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFE65100))
                                             }
                                         }
@@ -333,9 +334,9 @@ fun BillingScreen(
                                             Divider(modifier = Modifier.padding(vertical = 2.dp))
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("Order Discount ($discountPct%):", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                                                Text("Order Discount ($discountPct%):", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                                 Text("-₹${"%.2f".format(discountAmt)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
                                             }
                                             Text(
@@ -349,9 +350,9 @@ fun BillingScreen(
                                         // Grand Total
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text("GRAND TOTAL:", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                                            Text("GRAND TOTAL:", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
                                             Text("₹${"%.2f".format(grandTotal)}", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                                         }
 

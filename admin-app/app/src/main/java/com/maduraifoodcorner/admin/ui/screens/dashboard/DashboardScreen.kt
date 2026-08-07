@@ -73,9 +73,6 @@ fun DashboardScreen(
             when (val state = uiState) {
                 is DashboardState.Loading -> LoadingState("Fetching real-time business data...")
                 is DashboardState.Error -> {
-                    var showServerIpDialog by remember { mutableStateOf(false) }
-                    val context = LocalContext.current
-
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -95,53 +92,10 @@ fun DashboardScreen(
                                 fontSize = 14.sp
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Button(onClick = { viewModel.loadDashboard() }) {
-                                    Text("Retry")
-                                }
-                                OutlinedButton(onClick = { showServerIpDialog = true }) {
-                                    Text("Change Server IP")
-                                }
+                            Button(onClick = { viewModel.loadDashboard() }) {
+                                Text("Retry")
                             }
                         }
-                    }
-
-                    if (showServerIpDialog) {
-                        val prefs = remember { context.getSharedPreferences(com.maduraifoodcorner.admin.utils.Constants.PREF_NAME, android.content.Context.MODE_PRIVATE) }
-                        var tempIp by remember { mutableStateOf(prefs.getString("server_ip", "10.201.50.49:5000") ?: "10.201.50.49:5000") }
-
-                        AlertDialog(
-                            onDismissRequest = { showServerIpDialog = false },
-                            title = { Text("Configure Backend Host IP", fontWeight = FontWeight.Bold) },
-                            text = {
-                                Column {
-                                    Text("Enter your PC's IP address (e.g. 10.201.50.49:5000 or 192.168.1.X:5000):", fontSize = 12.sp, color = Color.Gray)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    OutlinedTextField(
-                                        value = tempIp,
-                                        onValueChange = { tempIp = it },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        prefs.edit().putString("server_ip", tempIp.trim()).apply()
-                                        showServerIpDialog = false
-                                        viewModel.loadDashboard()
-                                    }
-                                ) {
-                                    Text("Save & Connect")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showServerIpDialog = false }) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
                     }
                 }
                 is DashboardState.Success -> {

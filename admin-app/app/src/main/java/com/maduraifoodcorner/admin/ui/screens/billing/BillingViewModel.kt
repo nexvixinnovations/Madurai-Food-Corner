@@ -245,8 +245,8 @@ class BillingViewModel @Inject constructor(
     fun generatePosOrder(
         orderType: String = "Parcel",
         paymentMethod: String = "Cash",
-        customerName: String = "Counter Customer",
-        customerPhone: String = "9999999999",
+        customerName: String = "",
+        customerPhone: String = "",
         onSuccess: (Order) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -263,11 +263,7 @@ class BillingViewModel @Inject constructor(
 
             val itemRequests = cart.map { lineItem ->
                 CreateOrderItemRequest(
-                    // Pass the actual item type so backend applies correct discount logic:
-                    //   "food"  → eligible for order value discount
-                    //   "combo" → eligible for order value discount
-                    //   "offer" → NOT eligible (special offer items excluded)
-                    type = lineItem.item.itemType,  // "food", "combo", or "offer"
+                    type = lineItem.item.itemType,
                     id = lineItem.item.id,
                     quantity = lineItem.quantity,
                     unit_price = lineItem.unitPrice
@@ -276,8 +272,8 @@ class BillingViewModel @Inject constructor(
 
             val posOrderReq = CreatePosOrderRequest(
                 customer = CreateCustomerRequest(
-                    name = customerName.ifBlank { "Counter Customer" },
-                    phone = customerPhone.ifBlank { "9999999999" }
+                    name = customerName,
+                    phone = customerPhone
                 ),
                 required_date = todayStr,
                 required_time = timeStr,
