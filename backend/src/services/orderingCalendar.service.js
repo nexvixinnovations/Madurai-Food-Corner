@@ -95,13 +95,12 @@ class OrderingCalendarService {
           const parsedDate = this.parseDateUtc(item.order_date);
           if (!parsedDate) continue;
 
-          const dateStrForDb = this.formatDateIso(parsedDate);
           const isOpen = item.is_open === true || item.is_open === 'true';
 
           const upserted = await tx.ordering_calendar.upsert({
-            where: { order_date: dateStrForDb },
+            where: { order_date: parsedDate },
             update: { is_open: isOpen },
-            create: { order_date: dateStrForDb, is_open: isOpen },
+            create: { order_date: parsedDate, is_open: isOpen },
           });
 
           const formattedIso = this.formatDateIso(upserted.order_date);
@@ -156,15 +155,13 @@ class OrderingCalendarService {
     const parsedDate = this.parseDateUtc(dateStr);
     if (!parsedDate) return false;
 
-    const dateStrForDb = this.formatDateIso(parsedDate);
-
     try {
       const record = await prisma.ordering_calendar.findUnique({
-        where: { order_date: dateStrForDb },
+        where: { order_date: parsedDate },
       });
 
       const isClosed = record ? record.is_open === false : false;
-      const formattedDateStr = dateStrForDb;
+      const formattedDateStr = this.formatDateIso(parsedDate);
 
       if (isClosed) {
         logger.warn(`[OrderingCalendar] Date check result: ${formattedDateStr} is CLOSED`);
