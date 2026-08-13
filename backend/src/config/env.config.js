@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Environment Variables Configuration & Validation
  */

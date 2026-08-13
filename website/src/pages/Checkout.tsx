@@ -194,8 +194,8 @@ export const Checkout: React.FC = () => {
       } catch (sessionErr: any) {
         toast.dismiss('payment-loading');
         console.warn('Cashfree payment session creation failed:', sessionErr.message);
-        // Fallback: If Cashfree keys are not configured yet, redirect to order success page with instructions
-        toast.success(`Order #${newOrder.order_number} created! (Configure Cashfree keys in backend .env to enable instant online payment)`);
+        toast.error(`Cashfree Payment Error: ${sessionErr.message || 'Unable to initiate Cashfree session'}`);
+        // Navigate to order success with pending payment notification
         clearCart();
         navigate(`/order-success/${newOrder.order_number}`);
         return;
@@ -209,7 +209,7 @@ export const Checkout: React.FC = () => {
 
       cashfree.checkout({
         paymentSessionId: sessionData.payment_session_id,
-        redirectTarget: '_self',
+        redirectTarget: '_modal',
       });
 
       // Trigger Confetti Celebration

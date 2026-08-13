@@ -63,7 +63,8 @@ class CashfreeService {
 
     try {
       const apiVersion = envConfig.CASHFREE_API_VERSION || '2023-08-01';
-      const response = await Cashfree.PGCreateOrder(apiVersion, requestPayload);
+      const cf = new Cashfree();
+      const response = await cf.PGCreateOrder(apiVersion, requestPayload);
       
       if (!response.data || !response.data.payment_session_id) {
         throw new ApiError(500, 'Failed to obtain payment session from Cashfree Payment Gateway.');
@@ -89,7 +90,8 @@ class CashfreeService {
     this.init();
     try {
       const apiVersion = envConfig.CASHFREE_API_VERSION || '2023-08-01';
-      const response = await Cashfree.PGFetchOrder(apiVersion, String(orderId));
+      const cf = new Cashfree();
+      const response = await cf.PGFetchOrder(apiVersion, String(orderId));
       return response.data;
     } catch (error) {
       console.error('[CASHFREE FETCH ORDER ERROR]', error?.response?.data || error.message);
@@ -103,7 +105,8 @@ class CashfreeService {
   verifyWebhookSignature(signature, rawBody, timestamp) {
     try {
       this.init();
-      return Cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp);
+      const cf = new Cashfree();
+      return cf.PGVerifyWebhookSignature(signature, rawBody, timestamp);
     } catch (error) {
       console.error('[CASHFREE WEBHOOK VERIFY ERROR]', error.message);
       return false;
