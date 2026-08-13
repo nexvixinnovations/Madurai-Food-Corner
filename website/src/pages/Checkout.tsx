@@ -133,8 +133,8 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    if (customerPhone.trim().length < 10) {
-      toast.error('Please enter a valid 10-digit Phone Number');
+    if (customerPhone.trim().length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile Phone Number');
       return;
     }
 
@@ -276,10 +276,16 @@ export const Checkout: React.FC = () => {
                     <input
                       type="tel"
                       required
+                      inputMode="numeric"
+                      pattern="[0-9]{10}"
+                      maxLength={10}
                       placeholder="10-digit mobile number"
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-amber-500"
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setCustomerPhone(digitsOnly);
+                      }}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-amber-500 font-mono tracking-wider"
                     />
                   </div>
                 </div>

@@ -134,10 +134,16 @@ export const Contact: React.FC = () => {
                   <label className="block font-semibold text-zinc-700 dark:text-zinc-300 mb-1">Phone Number</label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]{10}"
+                    maxLength={10}
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-amber-500"
-                    placeholder="Your Phone Number"
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhone(digitsOnly);
+                    }}
+                    className="w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-amber-500 font-mono tracking-wider"
+                    placeholder="10-digit mobile number"
                   />
                 </div>
 
