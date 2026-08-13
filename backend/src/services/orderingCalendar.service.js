@@ -87,34 +87,65 @@ class OrderingCalendarService {
     logger.info('[OrderingCalendar] Processing calendar update request', { totalDatesToUpdate: datesList.length });
 
     try {
-      return await prisma.$transaction(async (tx) => {
-        const results = [];
+      const results = [];
+      const closedDatesSet = new Set();
 
-        for (const item of datesList) {
-          if (!item || !item.order_date) continue;
-          const parsedDate = this.parseDateUtc(item.order_date);
-          if (!parsedDate) continue;
+      for (const item of datesList) {
+        if (!item || !item.order_date) continue;
+        const parsedDate = this.parseDateUtc(item.order_date);
+        if (!parsedDate) continue;
 
-          const isOpen = item.is_open === true || item.is_open === 'true';
+        const dateIso = this.formatDateIso(parsedDate);
+        const isOpen = item.is_open === true || item.is_open === 'true';
 
-          const upserted = await tx.ordering_calendar.upsert({
-            where: { order_date: parsedDate },
-            update: { is_open: isOpen },
-            create: { order_date: parsedDate, is_open: isOpen },
-          });
-
-          const formattedIso = this.formatDateIso(upserted.order_date);
-          results.push({
-            order_date: formattedIso,
-            is_open: upserted.is_open,
-          });
-
-          logger.info(`[OrderingCalendar] Saved override: ${formattedIso} -> ${upserted.is_open ? 'OPEN' : 'CLOSED'}`);
+        if (!isOpen) {
+          closedDatesSet.add(dateIso);
         }
 
-        logger.info('[OrderingCalendar] Calendar transaction committed successfully', { updatedCount: results.length });
-        return results;
-      });
+        try {
+          const existing = await prisma.ordering_calendar.findFirst({
+            where: { order_date: parsedDate },
+          });
+
+          let savedRecord;
+          if (existing) {
+            savedRecord = await prisma.ordering_calendar.update({
+              where: { id: existing.id },
+              data: { is_open: isOpen, updated_at: new Date() },
+            });
+          } else {
+            savedRecord = await prisma.ordering_calendar.create({
+              data: { order_date: parsedDate, is_open: isOpen },
+            });
+          }
+
+          results.push({
+            order_date: dateIso,
+            is_open: savedRecord.is_open,
+          });
+
+          logger.info(`[OrderingCalendar] Saved override: ${dateIso} -> ${savedRecord.is_open ? 'OPEN' : 'CLOSED'}`);
+        } catch (itemErr) {
+          logger.error(`[OrderingCalendar] Failed date override for ${dateIso}:`, itemErr.message);
+        }
+      }
+
+      // Also sync settings.disabled_dates array in settings table
+      try {
+        const currentSettings = await prisma.settings.findFirst();
+        if (currentSettings) {
+          const closedDatesList = Array.from(closedDatesSet);
+          await prisma.settings.update({
+            where: { id: currentSettings.id },
+            data: { disabled_dates: JSON.stringify(closedDatesList) },
+          });
+        }
+      } catch (settingsErr) {
+        logger.warn('[OrderingCalendar] Failed to sync disabled_dates in settings table:', settingsErr.message);
+      }
+
+      logger.info('[OrderingCalendar] Calendar update committed successfully', { updatedCount: results.length });
+      return results;
     } catch (err) {
       console.error("Full server-side stack trace during ordering calendar update:", err.stack);
       logger.error('[OrderingCalendar] Error updating ordering calendar in DB', { error: err.message });

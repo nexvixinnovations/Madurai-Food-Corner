@@ -52,6 +52,7 @@ interface AdminApiService {
         @Part("offer_enabled") offerEnabled: RequestBody,
         @Part("offer_price") offerPrice: RequestBody?,
         @Part("available") available: RequestBody,
+        @Part("online_available") onlineAvailable: RequestBody,
         @Part("available_days") availableDays: RequestBody,
         @Part image: MultipartBody.Part?
     ): Response<ApiResponse<FoodItem>>
@@ -67,6 +68,7 @@ interface AdminApiService {
         @Part("offer_enabled") offerEnabled: RequestBody,
         @Part("offer_price") offerPrice: RequestBody?,
         @Part("available") available: RequestBody,
+        @Part("online_available") onlineAvailable: RequestBody,
         @Part("available_days") availableDays: RequestBody,
         @Part image: MultipartBody.Part?
     ): Response<ApiResponse<FoodItem>>

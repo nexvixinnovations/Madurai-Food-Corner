@@ -104,6 +104,7 @@ class FoodService {
       }
     }
     const available = data.available !== undefined ? (data.available === 'true' || data.available === true) : true;
+    const onlineAvailable = data.online_available !== undefined ? (data.online_available === 'true' || data.online_available === true) : true;
     const displayOrder = data.display_order ? parseInt(data.display_order, 10) : 1;
     const prepTime = data.preparation_time ? parseInt(data.preparation_time, 10) : 15;
 
@@ -124,6 +125,7 @@ class FoodService {
         offer_enabled: offerEnabled,
         offer_price: offerPrice,
         available,
+        online_available: onlineAvailable,
         display_order: displayOrder,
         preparation_time: prepTime,
         image_url: imageUrl,
@@ -186,6 +188,7 @@ class FoodService {
     if (data.offer_enabled !== undefined) updateData.offer_enabled = data.offer_enabled === 'true' || data.offer_enabled === true;
     if (data.offer_price !== undefined) updateData.offer_price = data.offer_price ? parseFloat(data.offer_price) : null;
     if (data.available !== undefined) updateData.available = data.available === 'true' || data.available === true;
+    if (data.online_available !== undefined) updateData.online_available = data.online_available === 'true' || data.online_available === true;
     if (data.display_order !== undefined) updateData.display_order = parseInt(data.display_order, 10);
     if (data.preparation_time !== undefined) updateData.preparation_time = parseInt(data.preparation_time, 10);
     

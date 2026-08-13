@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const websiteController = require('../controllers/website.controller');
 const orderingCalendarController = require('../controllers/orderingCalendar.controller');
+const paymentController = require('../controllers/payment.controller');
 
 /**
  * Routes for Customer Website API (/api/website)
@@ -30,5 +31,11 @@ router.get('/restaurant-info', websiteController.getRestaurantInfo);
 
 // GET Ordering Calendar Closed Dates (Public)
 router.get('/ordering-calendar', orderingCalendarController.getWebsiteCalendar);
+
+// POST Create Cashfree Payment Session for Website Order
+router.post('/payments/create-session', paymentController.createCashfreeSession);
+
+// POST Verify Cashfree Payment Status for Website Order
+router.post('/payments/verify', paymentController.verifyCashfreePayment);
 
 module.exports = router;

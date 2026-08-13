@@ -8,6 +8,7 @@ export interface FoodItem {
   offer_enabled?: boolean;
   offer_price?: number | null;
   available?: boolean;
+  online_available?: boolean;
   display_order?: number;
   preparation_time?: number; // in minutes
   description?: string;

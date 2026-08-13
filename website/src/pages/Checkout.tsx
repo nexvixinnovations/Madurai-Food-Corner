@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import { RestaurantSettings } from '../types';
+import { load } from '@cashfreepayments/cashfree-js';
 
 export const Checkout: React.FC = () => {
   const { items, subtotal, clearCart, discountPreview, setDiscountSettings } = useCart();
@@ -134,8 +135,43 @@ export const Checkout: React.FC = () => {
         })),
       };
 
+      // 1. Place order in ERP Backend
       const newOrder = await websiteApi.placeOrder(orderPayload);
       console.log("Checkout API Response:", newOrder);
+
+      // 2. Obtain Cashfree Payment Session from Backend
+      toast.loading('Initiating Cashfree Payment Gateway...', { id: 'payment-loading' });
+
+      let sessionData;
+      try {
+        sessionData = await websiteApi.createCashfreeSession({
+          order_id: newOrder.id,
+          order_number: newOrder.order_number,
+          amount: newOrder.total_amount || grandTotal,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_email: customerEmail,
+        });
+      } catch (sessionErr: any) {
+        toast.dismiss('payment-loading');
+        console.warn('Cashfree payment session creation failed:', sessionErr.message);
+        // Fallback: If Cashfree keys are not configured yet, redirect to order success page with instructions
+        toast.success(`Order #${newOrder.order_number} created! (Configure Cashfree keys in backend .env to enable instant online payment)`);
+        clearCart();
+        navigate(`/order-success/${newOrder.order_number}`);
+        return;
+      }
+
+      toast.dismiss('payment-loading');
+
+      // 3. Initialize Cashfree JS SDK & launch checkout modal
+      const isProduction = import.meta.env.VITE_CASHFREE_MODE === 'production';
+      const cashfree = await load({ mode: isProduction ? 'production' : 'sandbox' });
+
+      cashfree.checkout({
+        paymentSessionId: sessionData.payment_session_id,
+        redirectTarget: '_self',
+      });
 
       // Trigger Confetti Celebration
       confetti({
@@ -144,10 +180,9 @@ export const Checkout: React.FC = () => {
         origin: { y: 0.6 },
       });
 
-      toast.success(`Order Placed Successfully! #${newOrder.order_number}`);
       clearCart();
-      navigate(`/order-success/${newOrder.order_number}`);
     } catch (err: any) {
+      toast.dismiss('payment-loading');
       toast.error(err.message || 'Failed to place order. Please try again.');
     } finally {
       setIsSubmitting(false);

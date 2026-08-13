@@ -143,6 +143,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
         offerEnabled: Boolean,
         offerPrice: Double?,
         available: Boolean,
+        onlineAvailable: Boolean = true,
         availableDays: String,
         imageFile: File?,
         mimeType: String = "image/jpeg",
@@ -156,6 +157,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
             val offerEnabledPart = offerEnabled.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             val offerPricePart = offerPrice?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
             val availablePart = available.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+            val onlineAvailablePart = onlineAvailable.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             val availableDaysPart = availableDays.toRequestBody("text/plain".toMediaTypeOrNull())
 
             val imagePart = imageFile?.let {
@@ -166,7 +168,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
 
             val res = apiService.createFoodMultipart(
                 namePart, categoryPart, foodTypePart, pricePart,
-                offerEnabledPart, offerPricePart, availablePart, availableDaysPart, imagePart
+                offerEnabledPart, offerPricePart, availablePart, onlineAvailablePart, availableDaysPart, imagePart
             )
 
             if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {
@@ -189,6 +191,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
         offerEnabled: Boolean,
         offerPrice: Double?,
         available: Boolean,
+        onlineAvailable: Boolean = true,
         availableDays: String,
         imageFile: File?,
         mimeType: String = "image/jpeg",
@@ -202,6 +205,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
             val offerEnabledPart = offerEnabled.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             val offerPricePart = offerPrice?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
             val availablePart = available.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+            val onlineAvailablePart = onlineAvailable.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             val availableDaysPart = availableDays.toRequestBody("text/plain".toMediaTypeOrNull())
 
             val imagePart = imageFile?.let {
@@ -212,7 +216,7 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
 
             val res = apiService.updateFoodMultipart(
                 id, namePart, categoryPart, foodTypePart, pricePart,
-                offerEnabledPart, offerPricePart, availablePart, availableDaysPart, imagePart
+                offerEnabledPart, offerPricePart, availablePart, onlineAvailablePart, availableDaysPart, imagePart
             )
 
             if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {

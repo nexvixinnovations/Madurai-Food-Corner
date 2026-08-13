@@ -6,6 +6,15 @@ const paymentController = require('../controllers/payment.controller');
  * Routes for /api/payments
  */
 
+// POST create Cashfree payment session
+router.post('/cashfree/session', paymentController.createCashfreeSession);
+
+// POST verify Cashfree payment status
+router.post('/cashfree/verify', paymentController.verifyCashfreePayment);
+
+// POST Cashfree webhook notifications (Server-to-Server)
+router.post('/webhook', paymentController.handleCashfreeWebhook);
+
 // GET all payments with optional filters & search
 router.get('/', paymentController.getPayments);
 

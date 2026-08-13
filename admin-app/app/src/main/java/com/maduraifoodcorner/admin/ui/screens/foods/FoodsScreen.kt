@@ -328,9 +328,9 @@ fun FoodsScreen(
         if (showAddFoodDialog) {
             AddFoodDialog(
                 onDismiss = { showAddFoodDialog = false },
-                onAddMultipart = { name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName ->
+                onAddMultipart = { name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName ->
                     viewModel.addFoodMultipart(
-                        name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName
+                        name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
                     )
                     showAddFoodDialog = false
                     Toast.makeText(context, "New food item created!", Toast.LENGTH_SHORT).show()
@@ -368,9 +368,9 @@ fun FoodsScreen(
             EditFoodDialog(
                 food = food,
                 onDismiss = { editingFoodItem = null },
-                onUpdateMultipart = { id, name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName ->
+                onUpdateMultipart = { id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName ->
                     viewModel.updateFoodMultipart(
-                        id, name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName
+                        id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
                     )
                     editingFoodItem = null
                     Toast.makeText(context, "Food item updated successfully", Toast.LENGTH_SHORT).show()
@@ -709,7 +709,7 @@ fun AddFoodDialog(
     onDismiss: () -> Unit,
     onAddMultipart: (
         name: String, category: String, foodType: String, price: Double, offerEnabled: Boolean, offerPrice: Double?,
-        available: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
+        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
     ) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
@@ -717,6 +717,7 @@ fun AddFoodDialog(
     var priceStr by remember { mutableStateOf("") }
     var offerEnabled by remember { mutableStateOf(false) }
     var offerPriceStr by remember { mutableStateOf("") }
+    var onlineAvailable by remember { mutableStateOf(true) }
 
     var isEveryDay by remember { mutableStateOf(true) }
     var mon by remember { mutableStateOf(false) }
@@ -777,6 +778,12 @@ fun AddFoodDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Online Order Available", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
 
                 Text("Available Days (Checkboxes):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -874,7 +881,7 @@ fun AddFoodDialog(
 
                     val op = if (offerEnabled) offerPriceStr.toDoubleOrNull() else null
                     onAddMultipart(
-                        name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, true, formattedDays,
+                        name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, true, onlineAvailable, formattedDays,
                         selectedUploadData?.file, selectedUploadData?.mimeType ?: "image/jpeg", selectedUploadData?.originalName
                     )
                 }
@@ -1191,7 +1198,7 @@ fun EditFoodDialog(
     onDismiss: () -> Unit,
     onUpdateMultipart: (
         id: String, name: String, category: String, foodType: String, price: Double, offerEnabled: Boolean, offerPrice: Double?,
-        available: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
+        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
     ) -> Unit
 ) {
     var name by remember { mutableStateOf(food.name) }
@@ -1199,6 +1206,7 @@ fun EditFoodDialog(
     var priceStr by remember { mutableStateOf(food.price.toInt().toString()) }
     var offerEnabled by remember { mutableStateOf(food.offer_enabled) }
     var offerPriceStr by remember { mutableStateOf(food.offer_price?.toInt()?.toString() ?: "") }
+    var onlineAvailable by remember { mutableStateOf(food.online_available) }
 
     val rawDays = food.available_days ?: "Every Day"
     var isEveryDay by remember { mutableStateOf(rawDays.contains("Every Day", ignoreCase = true)) }
@@ -1260,6 +1268,12 @@ fun EditFoodDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Online Order Available", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
 
                 Text("Available Days (Checkboxes):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1370,7 +1384,7 @@ fun EditFoodDialog(
 
                     val op = if (offerEnabled) offerPriceStr.toDoubleOrNull() else null
                     onUpdateMultipart(
-                        food.id, name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, food.available, formattedDays,
+                        food.id, name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, food.available, onlineAvailable, formattedDays,
                         selectedUploadData?.file, selectedUploadData?.mimeType ?: "image/jpeg", selectedUploadData?.originalName
                     )
                 }

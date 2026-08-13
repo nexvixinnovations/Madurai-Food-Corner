@@ -130,6 +130,7 @@ class FoodsViewModel @Inject constructor(
         offerEnabled: Boolean,
         offerPrice: Double?,
         available: Boolean,
+        onlineAvailable: Boolean = true,
         availableDays: String,
         imageFile: java.io.File?,
         mimeType: String = "image/jpeg",
@@ -137,7 +138,7 @@ class FoodsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             repository.createFoodMultipart(
-                name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName
+                name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
             )
                 .onSuccess {
                     _toastMessage.emit("Food item added successfully!")
@@ -156,6 +157,7 @@ class FoodsViewModel @Inject constructor(
         offerEnabled: Boolean,
         offerPrice: Double?,
         available: Boolean,
+        onlineAvailable: Boolean = true,
         availableDays: String,
         imageFile: java.io.File?,
         mimeType: String = "image/jpeg",
@@ -163,7 +165,7 @@ class FoodsViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             repository.updateFoodMultipart(
-                id, name, category, foodType, price, offerEnabled, offerPrice, available, availableDays, imageFile, mimeType, originalName
+                id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
             )
                 .onSuccess {
                     _toastMessage.emit("Food item updated successfully!")

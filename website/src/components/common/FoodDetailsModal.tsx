@@ -120,31 +120,42 @@ export const FoodDetailsModal: React.FC<FoodDetailsModalProps> = ({ food, onClos
 
             {/* Quantity Selector & Add to Cart Button */}
             <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center space-x-3 bg-zinc-100 dark:bg-zinc-800 p-1.5 rounded-2xl">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 transition-colors"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="text-sm font-bold w-6 text-center text-brand-maroon dark:text-amber-400">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
+              {food.available !== false && food.online_available !== false ? (
+                <>
+                  <div className="flex items-center space-x-3 bg-zinc-100 dark:bg-zinc-800 p-1.5 rounded-2xl">
+                    <button
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 transition-colors"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-bold w-6 text-center text-brand-maroon dark:text-amber-400">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
 
-              <button
-                onClick={handleAddToCart}
-                className="flex-1 ml-4 py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-brand-maroon font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Add to Cart ({formatCurrency(activePrice * quantity)})</span>
-              </button>
+                  <button
+                    onClick={handleAddToCart}
+                    className="flex-1 ml-4 py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-brand-maroon font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Add to Cart ({formatCurrency(activePrice * quantity)})</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-sm flex items-center justify-center space-x-2 cursor-not-allowed border border-zinc-300 dark:border-zinc-700"
+                >
+                  <span>Currently Not Available for Online Order</span>
+                </button>
+              )}
             </div>
           </div>
         </motion.div>

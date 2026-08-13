@@ -80,4 +80,27 @@ export const websiteApi = {
     const res = await apiClient.get<ApiResponse<any>>('/ordering-status', { params: { date } });
     return res.data.data;
   },
+
+  // Create Cashfree Payment Session
+  createCashfreeSession: async (payload: {
+    order_id?: string;
+    order_number?: string;
+    amount?: number;
+    customer_name?: string;
+    customer_phone?: string;
+    customer_email?: string;
+    return_url?: string;
+  }): Promise<{ payment_session_id: string; order_id: string }> => {
+    const res = await apiClient.post<ApiResponse<{ payment_session_id: string; order_id: string }>>(
+      '/payments/create-session',
+      payload
+    );
+    return res.data.data;
+  },
+
+  // Verify Cashfree Payment Status
+  verifyPayment: async (orderId: string): Promise<any> => {
+    const res = await apiClient.post<ApiResponse<any>>('/payments/verify', { order_id: orderId });
+    return res.data.data;
+  },
 };

@@ -84,6 +84,7 @@ model FoodItem {
   price       Decimal   @db.Decimal(10, 2)
   isVeg       Boolean   @default(true)
   isAvailable Boolean   @default(true)
+  isOnlineAvailable Boolean @default(true)
   imageUrl    String?   @db.Text
   isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
