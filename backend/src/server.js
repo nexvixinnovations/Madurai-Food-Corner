@@ -8,6 +8,10 @@ const PORT = envConfig.PORT || 5000;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Madurai Food Corner ERP Backend running in ${envConfig.NODE_ENV} mode on PORT: ${PORT}`);
+  console.log(`[DEBUG] CASHFREE_APP_ID present: ${!!process.env.CASHFREE_APP_ID}`);
+  console.log(`[DEBUG] CASHFREE_SECRET_KEY present: ${!!process.env.CASHFREE_SECRET_KEY}`);
+  console.log(`[DEBUG] CASHFREE_ENV value: ${process.env.CASHFREE_ENV}`);
+  console.log(`[DEBUG] CASHFREE_API_VERSION value: ${process.env.CASHFREE_API_VERSION}`);
   logger.info(`📡 Server Base URL: http://0.0.0.0:${PORT}/`);
   logger.info(`📖 Swagger API Docs: http://localhost:${PORT}/api/docs`);
   logger.info(`❤️ Health Check: http://localhost:${PORT}/api/health`);
