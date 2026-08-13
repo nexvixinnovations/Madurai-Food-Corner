@@ -162,6 +162,8 @@ export interface RestaurantSettings {
   ordering_end_time?: string | null;
   ordering_time_scope?: string | null;
   ordering_target_date?: string | null;
+  website_order_window_start?: string | null;
+  website_order_window_end?: string | null;
   tax_percentage: number;
   invoice_prefix?: string;
   order_prefix?: string;

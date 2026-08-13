@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingBag, Plus, Minus, Tag } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { FoodItem } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
@@ -19,8 +20,13 @@ export const FoodDetailsModal: React.FC<FoodDetailsModalProps> = ({ food, onClos
   const isOffer = food.offer_enabled && food.offer_price && food.offer_price > 0;
   const activePrice = isOffer ? food.offer_price! : food.price;
   const isVeg = food.food_type?.toLowerCase() === 'veg';
+  const isAvailable = food.available !== false && food.online_available !== false;
 
   const handleAddToCart = () => {
+    if (!isAvailable) {
+      toast.error('This item is not available to order');
+      return;
+    }
     addItem(
       {
         type: 'food',
@@ -150,8 +156,8 @@ export const FoodDetailsModal: React.FC<FoodDetailsModalProps> = ({ food, onClos
                 </>
               ) : (
                 <button
-                  disabled
-                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-sm flex items-center justify-center space-x-2 cursor-not-allowed border border-zinc-300 dark:border-zinc-700"
+                  onClick={() => toast.error('This item is not available to order')}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-sm flex items-center justify-center space-x-2 border border-zinc-300 dark:border-zinc-700 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 transition-colors"
                 >
                   <span>Currently Not Available for Online Order</span>
                 </button>

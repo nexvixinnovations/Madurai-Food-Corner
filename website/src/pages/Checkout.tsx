@@ -67,13 +67,30 @@ export const Checkout: React.FC = () => {
     return null;
   }
 
-  // Date is disabled if overall ordering is disabled OR if date is in disabledDates list
-  const isSelectedDateDisabled = !dateWiseEnabled || disabledDates.includes(requiredDate);
+  // Cutoff time format and calculation (e.g. 2:00 PM / 14:00 cutoff for same-day ordering)
+  const cutoffTimeStr = settings?.ordering_start_time || settings?.website_order_window_start || '14:00';
+
+  const formattedCutoffTime = useMemo(() => {
+    if (!cutoffTimeStr) return '2:00 PM';
+    const parts = cutoffTimeStr.split(':');
+    const h = parseInt(parts[0], 10) || 14;
+    const m = parseInt(parts[1] || '0', 10);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    const mStr = m < 10 ? `0${m}` : `${m}`;
+    return `${h12}:${mStr} ${period}`;
+  }, [cutoffTimeStr]);
 
   // Generate upcoming 14 calendar days starting from today for green/red date picker
   const availableCalendarDays = useMemo(() => {
     const list = [];
     const today = new Date();
+    const currentTotalMin = today.getHours() * 60 + today.getMinutes();
+
+    const [cutoffH, cutoffM] = cutoffTimeStr.split(':').map((n: string) => parseInt(n, 10) || 0);
+    const cutoffTotalMin = cutoffH * 60 + cutoffM;
+    const isPastCutoffToday = currentTotalMin >= cutoffTotalMin;
+
     for (let i = 0; i < 14; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
@@ -85,11 +102,28 @@ export const Checkout: React.FC = () => {
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
       const monthName = d.toLocaleDateString('en-US', { month: 'short' });
       const isToday = i === 0;
-      const isClosed = !dateWiseEnabled || disabledDates.includes(iso);
-      list.push({ iso, dayNum, dayName, monthName, isToday, isClosed });
+
+      const isSameDayClosed = isToday && isPastCutoffToday;
+      const isClosed = !dateWiseEnabled || disabledDates.includes(iso) || isSameDayClosed;
+
+      list.push({ iso, dayNum, dayName, monthName, isToday, isClosed, isSameDayClosed });
     }
     return list;
-  }, [dateWiseEnabled, disabledDates]);
+  }, [dateWiseEnabled, disabledDates, cutoffTimeStr]);
+
+  // Selected date status check
+  const selectedDayObj = useMemo(() => availableCalendarDays.find((d) => d.iso === requiredDate), [availableCalendarDays, requiredDate]);
+  const isSelectedDateDisabled = !dateWiseEnabled || disabledDates.includes(requiredDate) || (selectedDayObj ? selectedDayObj.isClosed : false);
+
+  // Ensure default requiredDate is set to the first OPEN (green) date
+  React.useEffect(() => {
+    if (availableCalendarDays.length > 0) {
+      const firstOpen = availableCalendarDays.find((d) => !d.isClosed);
+      if (firstOpen) {
+        setRequiredDate(firstOpen.iso);
+      }
+    }
+  }, [availableCalendarDays]);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,8 +143,13 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    if (disabledDates.includes(requiredDate)) {
-      toast.error(`Ordering is closed for ${requiredDate}. Please choose an OPEN (GREEN) date.`);
+    const selectedDayObj = availableCalendarDays.find((d) => d.iso === requiredDate);
+    if (selectedDayObj && selectedDayObj.isClosed) {
+      if (selectedDayObj.isSameDayClosed) {
+        toast.error(`Same-day ordering for today closed at ${formattedCutoffTime}. Please choose an upcoming date.`);
+      } else {
+        toast.error(`Ordering is closed for ${requiredDate}. Please choose an OPEN (GREEN) date.`);
+      }
       return;
     }
 
@@ -328,7 +367,11 @@ export const Checkout: React.FC = () => {
                         key={day.iso}
                         onClick={() => {
                           if (day.isClosed) {
-                            toast.error(`Ordering is CLOSED for ${day.dayName}, ${day.monthName} ${day.dayNum}. Please pick an OPEN (GREEN) date.`);
+                            if (day.isSameDayClosed) {
+                              toast.error(`Same-day ordering for today closed at ${formattedCutoffTime}. Please pick an OPEN (GREEN) date.`);
+                            } else {
+                              toast.error(`Ordering is CLOSED for ${day.dayName}, ${day.monthName} ${day.dayNum}. Please pick an OPEN (GREEN) date.`);
+                            }
                           } else {
                             setRequiredDate(day.iso);
                           }

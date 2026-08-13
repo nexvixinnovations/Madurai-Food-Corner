@@ -209,6 +209,25 @@ class OrderService {
         if (Array.isArray(disabled) && disabled.includes(reqDateStr)) {
           throw new ApiError(400, `Ordering is closed for the selected date (${reqDateStr}).`);
         }
+
+        // Check Same-Day Cutoff Time (e.g., 2:00 PM / 14:00 cutoff for same-day ordering)
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffset);
+        const todayIso = `${istTime.getFullYear()}-${String(istTime.getMonth() + 1).padStart(2, '0')}-${String(istTime.getDate()).padStart(2, '0')}`;
+
+        if (reqDateStr === todayIso) {
+          const cutoffTimeStr = currentSettings.ordering_start_time || currentSettings.website_order_window_start || '14:00';
+          const [cutoffH, cutoffM] = cutoffTimeStr.split(':').map((n) => parseInt(n, 10) || 0);
+          const currentTotalMin = istTime.getHours() * 60 + istTime.getMinutes();
+          const cutoffTotalMin = cutoffH * 60 + cutoffM;
+
+          if (currentTotalMin >= cutoffTotalMin) {
+            const fmtCutoff = orderingWindowService.format12Hour(cutoffTimeStr);
+            logger.warn(`[OrderService] Same-day order rejected for ${todayIso}: current time passed cutoff (${fmtCutoff})`);
+            throw new ApiError(400, `Same-day ordering for today closed at ${fmtCutoff}. Please select an upcoming date.`);
+          }
+        }
       }
     }
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Tag } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { FoodItem } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
@@ -20,7 +21,10 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isAvailable) return;
+    if (!isAvailable) {
+      toast.error('This item is not available to order');
+      return;
+    }
     addItem({
       type: 'food',
       id: food.id,
@@ -33,9 +37,17 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
     });
   };
 
+  const handleCardClick = () => {
+    if (!isAvailable) {
+      toast.error('This item is not available to order');
+      return;
+    }
+    if (onOpenDetails) onOpenDetails(food);
+  };
+
   return (
     <div
-      onClick={() => isAvailable && onOpenDetails && onOpenDetails(food)}
+      onClick={handleCardClick}
       className={`group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-200/80 dark:border-zinc-800/80 shadow-md transition-all duration-300 flex flex-col ${
         isAvailable ? 'hover:shadow-xl hover:shadow-amber-500/10 cursor-pointer active:scale-[0.99]' : 'opacity-70 cursor-not-allowed'
       }`}
@@ -152,8 +164,11 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
             </button>
           ) : (
             <button
-              disabled
-              className="px-3.5 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 font-bold text-xs flex items-center justify-center cursor-not-allowed border border-zinc-200 dark:border-zinc-700/50"
+              onClick={(e) => {
+                e.stopPropagation();
+                toast.error('This item is not available to order');
+              }}
+              className="px-3.5 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 font-bold text-xs flex items-center justify-center cursor-not-allowed border border-zinc-200 dark:border-zinc-700/50 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               <span>Not Available</span>
             </button>
