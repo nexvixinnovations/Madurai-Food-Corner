@@ -71,19 +71,20 @@ const createCashfreeSession = asyncHandler(async (req, res) => {
   const searchId = order_id || order_number;
 
   if (searchId) {
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(searchId));
+    const whereConditions = [{ order_number: String(searchId) }];
+    if (isUuid) {
+      whereConditions.push({ id: String(searchId) });
+    }
+
     targetOrder = await prisma.orders.findFirst({
-      where: {
-        OR: [
-          { id: String(searchId) },
-          { order_number: String(searchId) },
-        ],
-      },
+      where: { OR: whereConditions },
       include: { customers: true },
     });
   }
 
   const finalOrderId = targetOrder ? targetOrder.order_number : (order_number || order_id || `ORD_${Date.now()}`);
-  const finalAmount = targetOrder ? Number(targetOrder.grand_total) : Number(amount);
+  const finalAmount = targetOrder && targetOrder.total_amount ? Number(targetOrder.total_amount) : Number(amount);
   const finalCustomerName = targetOrder?.customers?.name || customer_name || 'Customer';
   const finalCustomerPhone = targetOrder?.customers?.phone || customer_phone || '9999999999';
   const finalCustomerEmail = targetOrder?.customers?.email || customer_email || undefined;
@@ -174,7 +175,7 @@ const handleCashfreeWebhook = asyncHandler(async (req, res) => {
         transaction_id: paymentData?.cf_payment_id || `CF_${orderId}`,
         payment_gateway: 'Cashfree',
         payment_method: paymentData?.payment_group || 'Online',
-        amount: orderData.order_amount || targetOrder.grand_total,
+        amount: orderData.order_amount || targetOrder.total_amount,
         status: isSuccess ? 'Paid' : 'Failed',
       });
       console.log(`[CASHFREE WEBHOOK PROCESSED] Order #${orderId} marked as ${isSuccess ? 'Paid' : 'Failed'}`);
