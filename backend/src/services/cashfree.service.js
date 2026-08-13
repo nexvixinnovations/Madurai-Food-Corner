@@ -8,9 +8,26 @@ class CashfreeService {
   }
 
   init() {
-    Cashfree.XClientId = envConfig.CASHFREE_APP_ID || process.env.CASHFREE_APP_ID || '';
-    Cashfree.XClientSecret = envConfig.CASHFREE_SECRET_KEY || process.env.CASHFREE_SECRET_KEY || '';
-    const env = (envConfig.CASHFREE_ENV || process.env.CASHFREE_ENV || 'SANDBOX').toUpperCase();
+    const appId = (
+      process.env.CASHFREE_APP_ID ||
+      process.env.CASHFREE_CLIENT_ID ||
+      process.env.CF_APP_ID ||
+      envConfig.CASHFREE_APP_ID ||
+      ''
+    ).trim();
+
+    const secretKey = (
+      process.env.CASHFREE_SECRET_KEY ||
+      process.env.CASHFREE_CLIENT_SECRET ||
+      process.env.CF_SECRET_KEY ||
+      envConfig.CASHFREE_SECRET_KEY ||
+      ''
+    ).trim();
+
+    Cashfree.XClientId = appId;
+    Cashfree.XClientSecret = secretKey;
+
+    const env = (process.env.CASHFREE_ENV || envConfig.CASHFREE_ENV || 'SANDBOX').toUpperCase();
     
     if (CFEnvironment) {
       Cashfree.XEnvironment = env === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
@@ -34,7 +51,15 @@ class CashfreeService {
   async createPaymentSession({ orderId, amount, customerName, customerPhone, customerEmail, returnUrl }) {
     this.init(); // Refresh credentials in case .env updated
 
-    if (!Cashfree.XClientId || !Cashfree.XClientSecret) {
+    const appId = Cashfree.XClientId;
+    const secretKey = Cashfree.XClientSecret;
+
+    if (!appId || !secretKey) {
+      console.error('[CASHFREE CREDENTIAL CHECK FAILED]', {
+        appIdPresent: !!appId,
+        secretKeyPresent: !!secretKey,
+        envVarsLoaded: Object.keys(process.env).filter(k => k.includes('CASHFREE')),
+      });
       throw new ApiError(500, 'Cashfree credentials (CASHFREE_APP_ID / CASHFREE_SECRET_KEY) are not configured on the backend server.');
     }
 
