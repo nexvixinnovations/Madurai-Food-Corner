@@ -67,10 +67,12 @@ class OrderingCalendarService {
    * Admin API: PUT /api/admin/ordering-calendar
    * Upsert calendar date overrides in Neon PostgreSQL ordering_calendar table using Prisma transaction
    */
+  /**
+   * Admin API: PUT /api/admin/ordering-calendar
+   * Upsert calendar date overrides in Neon PostgreSQL ordering_calendar table
+   */
   async updateAdminCalendar(payload) {
-    console.log("Calendar payload:", payload);
-    console.log("Available Prisma models:", Object.keys(prisma).filter(k => !k.startsWith('_') && !k.startsWith('$')));
-    console.log("Updating ordering calendar");
+    logger.info('[OrderingCalendar] Updating ordering calendar');
 
     let datesList = [];
     if (Array.isArray(payload)) {
@@ -87,8 +89,15 @@ class OrderingCalendarService {
     logger.info('[OrderingCalendar] Processing calendar update request', { totalDatesToUpdate: datesList.length });
 
     try {
+      // Fetch all existing calendar records and index by ISO date string (YYYY-MM-DD)
+      const existingRecords = await prisma.ordering_calendar.findMany();
+      const existingMap = new Map();
+      existingRecords.forEach((r) => {
+        const iso = this.formatDateIso(r.order_date);
+        if (iso) existingMap.set(iso, r);
+      });
+
       const results = [];
-      const closedDatesSet = new Set();
 
       for (const item of datesList) {
         if (!item || !item.order_date) continue;
@@ -96,27 +105,24 @@ class OrderingCalendarService {
         if (!parsedDate) continue;
 
         const dateIso = this.formatDateIso(parsedDate);
+        if (!dateIso) continue;
+
         const isOpen = item.is_open === true || item.is_open === 'true';
 
-        if (!isOpen) {
-          closedDatesSet.add(dateIso);
-        }
-
         try {
-          const existing = await prisma.ordering_calendar.findFirst({
-            where: { order_date: parsedDate },
-          });
-
+          const existingRecord = existingMap.get(dateIso);
           let savedRecord;
-          if (existing) {
+
+          if (existingRecord) {
             savedRecord = await prisma.ordering_calendar.update({
-              where: { id: existing.id },
+              where: { id: existingRecord.id },
               data: { is_open: isOpen, updated_at: new Date() },
             });
           } else {
             savedRecord = await prisma.ordering_calendar.create({
               data: { order_date: parsedDate, is_open: isOpen },
             });
+            existingMap.set(dateIso, savedRecord);
           }
 
           results.push({
@@ -130,11 +136,15 @@ class OrderingCalendarService {
         }
       }
 
-      // Also sync settings.disabled_dates array in settings table
+      // Sync settings.disabled_dates array with all currently closed dates in database
       try {
+        const allClosedRecords = await prisma.ordering_calendar.findMany({
+          where: { is_open: false },
+        });
+        const closedDatesList = allClosedRecords.map((r) => this.formatDateIso(r.order_date)).filter(Boolean);
+
         const currentSettings = await prisma.settings.findFirst();
         if (currentSettings) {
-          const closedDatesList = Array.from(closedDatesSet);
           await prisma.settings.update({
             where: { id: currentSettings.id },
             data: { disabled_dates: JSON.stringify(closedDatesList) },
@@ -183,21 +193,21 @@ class OrderingCalendarService {
    */
   async isDateClosed(dateStr) {
     if (!dateStr) return false;
-    const parsedDate = this.parseDateUtc(dateStr);
-    if (!parsedDate) return false;
+    const cleanStr = typeof dateStr === 'string' ? dateStr.trim().split('T')[0] : '';
+    if (!cleanStr) return false;
 
     try {
-      const record = await prisma.ordering_calendar.findUnique({
-        where: { order_date: parsedDate },
+      const closedRecords = await prisma.ordering_calendar.findMany({
+        where: { is_open: false },
       });
 
-      const isClosed = record ? record.is_open === false : false;
-      const formattedDateStr = this.formatDateIso(parsedDate);
+      const closedSet = new Set(closedRecords.map((r) => this.formatDateIso(r.order_date)).filter(Boolean));
+      const isClosed = closedSet.has(cleanStr);
 
       if (isClosed) {
-        logger.warn(`[OrderingCalendar] Date check result: ${formattedDateStr} is CLOSED`);
+        logger.warn(`[OrderingCalendar] Date check result: ${cleanStr} is CLOSED`);
       } else {
-        logger.info(`[OrderingCalendar] Date check result: ${formattedDateStr} is OPEN (default/override)`);
+        logger.info(`[OrderingCalendar] Date check result: ${cleanStr} is OPEN (default/override)`);
       }
 
       return isClosed;

@@ -1,4 +1,4 @@
-const { Cashfree } = require('cashfree-pg');
+const { Cashfree, CFEnvironment } = require('cashfree-pg');
 const ApiError = require('../utils/apiError');
 const envConfig = require('../config/env.config');
 
@@ -11,9 +11,14 @@ class CashfreeService {
     Cashfree.XClientId = envConfig.CASHFREE_APP_ID || process.env.CASHFREE_APP_ID || '';
     Cashfree.XClientSecret = envConfig.CASHFREE_SECRET_KEY || process.env.CASHFREE_SECRET_KEY || '';
     const env = (envConfig.CASHFREE_ENV || process.env.CASHFREE_ENV || 'SANDBOX').toUpperCase();
-    Cashfree.XEnvironment = env === 'PRODUCTION' 
-      ? Cashfree.Environment.PRODUCTION 
-      : Cashfree.Environment.SANDBOX;
+    
+    if (CFEnvironment) {
+      Cashfree.XEnvironment = env === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
+    } else if (Cashfree.Environment) {
+      Cashfree.XEnvironment = env === 'PRODUCTION' ? Cashfree.Environment.PRODUCTION : Cashfree.Environment.SANDBOX;
+    } else {
+      Cashfree.XEnvironment = env === 'PRODUCTION' ? 2 : 1;
+    }
   }
 
   /**
