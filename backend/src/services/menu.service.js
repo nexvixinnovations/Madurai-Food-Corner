@@ -58,9 +58,6 @@ class MenuService {
 
     const isAvailableToday = (food) => {
       if (!food) return false;
-      // Main Switch OFF (available === false): Total item is set to not available on that day -> hide from website
-      if (food.available === false) return false;
-
       if (!food.available_days || food.available_days.trim() === '' || food.available_days.toLowerCase().includes('every day')) return true;
       return food.available_days.toLowerCase().includes(currentDayName.toLowerCase());
     };
@@ -72,7 +69,7 @@ class MenuService {
         menu_date: targetDate,
         food_item_id: item.id,
         display_order: item.display_order,
-        available: item.online_available !== false,
+        available: item.available !== false,
         online_available: item.online_available !== false,
         food_items: item,
       }));

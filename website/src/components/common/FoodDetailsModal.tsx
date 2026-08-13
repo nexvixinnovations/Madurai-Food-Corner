@@ -154,12 +154,19 @@ export const FoodDetailsModal: React.FC<FoodDetailsModalProps> = ({ food, onClos
                     <span>Add to Cart ({formatCurrency(activePrice * quantity)})</span>
                   </button>
                 </>
+              ) : food.available !== false && food.online_available === false ? (
+                <button
+                  onClick={() => toast.error('This item is available in-store only')}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold text-sm flex items-center justify-center space-x-2 border border-zinc-200 dark:border-zinc-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                >
+                  <span>Available In-Store Only</span>
+                </button>
               ) : (
                 <button
-                  onClick={() => toast.error('This item is not available to order')}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold text-sm flex items-center justify-center space-x-2 border border-zinc-300 dark:border-zinc-700 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 transition-colors"
+                  onClick={() => toast.error('This item is not available today')}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 font-bold text-sm flex items-center justify-center space-x-2 border border-zinc-200 dark:border-zinc-700 hover:bg-red-50 hover:text-red-600 transition-colors"
                 >
-                  <span>Currently Not Available for Online Order</span>
+                  <span>Not Available Today</span>
                 </button>
               )}
             </div>
