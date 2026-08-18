@@ -183,6 +183,7 @@ export const Checkout: React.FC = () => {
 
       let sessionData;
       try {
+        const returnUrl = `${window.location.origin}/order-success/${newOrder.order_number}?order_id={order_id}&payment_status={order_status}`;
         sessionData = await websiteApi.createCashfreeSession({
           order_id: newOrder.id,
           order_number: newOrder.order_number,
@@ -190,6 +191,7 @@ export const Checkout: React.FC = () => {
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_email: customerEmail,
+          return_url: returnUrl,
         });
       } catch (sessionErr: any) {
         toast.dismiss('payment-loading');
@@ -203,13 +205,13 @@ export const Checkout: React.FC = () => {
 
       toast.dismiss('payment-loading');
 
-      // 3. Initialize Cashfree JS SDK & launch checkout modal
+      // 3. Initialize Cashfree JS SDK & launch checkout with full-page redirect
       const isProduction = import.meta.env.VITE_CASHFREE_MODE === 'production';
       const cashfree = await load({ mode: isProduction ? 'production' : 'sandbox' });
 
       cashfree.checkout({
         paymentSessionId: sessionData.payment_session_id,
-        redirectTarget: '_modal',
+        redirectTarget: '_self',
       });
 
       // Trigger Confetti Celebration
