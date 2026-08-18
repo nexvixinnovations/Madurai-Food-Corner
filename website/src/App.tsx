@@ -44,6 +44,7 @@ export const App: React.FC = () => {
                   <Route path="cart" element={<Cart />} />
                   <Route path="checkout" element={<Checkout />} />
                   <Route path="order-success/:orderNumber" element={<OrderSuccess />} />
+                  <Route path="order-success" element={<OrderSuccess />} />
                   <Route path="about" element={<About />} />
                   <Route path="contact" element={<Contact />} />
                   <Route path="admin" element={<AdminDashboard />} />

@@ -8,13 +8,16 @@ import { Loader } from '../components/common/Loader';
 import { generateReceiptPdf } from '../utils/generateReceiptPdf';
 
 export const OrderSuccess: React.FC = () => {
-  const { orderNumber } = useParams<{ orderNumber: string }>();
+  const { orderNumber: pathOrderNum } = useParams<{ orderNumber: string }>();
   const [searchParams] = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const paymentStatusParam = searchParams.get('payment_status');
   const cfOrderIdParam = searchParams.get('order_id');
+  const queryOrderNum = searchParams.get('order_number');
+
+  const orderNumber = pathOrderNum || queryOrderNum || cfOrderIdParam;
 
   useEffect(() => {
     if (orderNumber) {
