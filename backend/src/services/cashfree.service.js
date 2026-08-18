@@ -113,6 +113,11 @@ class CashfreeService {
       });
 
       const cf = new Cashfree();
+      cf.XClientId = appId;
+      cf.XClientSecret = secretKey;
+      cf.XEnvironment = Cashfree.XEnvironment;
+      cf.XApiVersion = Cashfree.XApiVersion || '2023-08-01';
+
       const response = await cf.PGCreateOrder(requestPayload);
       
       if (!response.data || !response.data.payment_session_id) {
@@ -139,6 +144,11 @@ class CashfreeService {
     this.init();
     try {
       const cf = new Cashfree();
+      cf.XClientId = Cashfree.XClientId;
+      cf.XClientSecret = Cashfree.XClientSecret;
+      cf.XEnvironment = Cashfree.XEnvironment;
+      cf.XApiVersion = Cashfree.XApiVersion || '2023-08-01';
+
       const response = await cf.PGFetchOrder(String(orderId));
       return response.data;
     } catch (error) {
