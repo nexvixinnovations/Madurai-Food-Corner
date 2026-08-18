@@ -27,7 +27,15 @@ class CashfreeService {
     Cashfree.XClientId = appId;
     Cashfree.XClientSecret = secretKey;
 
-    const env = (process.env.CASHFREE_ENV || envConfig.CASHFREE_ENV || 'SANDBOX').toUpperCase();
+    const apiVersion = (
+      process.env.CASHFREE_API_VERSION ||
+      envConfig.CASHFREE_API_VERSION ||
+      '2023-08-01'
+    ).trim();
+    Cashfree.XApiVersion = apiVersion;
+
+    const envRaw = (process.env.CASHFREE_ENV || envConfig.CASHFREE_ENV || 'SANDBOX').trim();
+    const env = envRaw.toUpperCase();
     
     if (CFEnvironment) {
       Cashfree.XEnvironment = env === 'PRODUCTION' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
@@ -87,9 +95,25 @@ class CashfreeService {
     };
 
     try {
-      const apiVersion = envConfig.CASHFREE_API_VERSION || '2023-08-01';
+      const isProduction = Cashfree.XEnvironment === (CFEnvironment ? CFEnvironment.PRODUCTION : 2);
+      const baseUrl = isProduction ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+      const fullRequestUrl = `${baseUrl}/orders`;
+
+      const headersUsed = {
+        'x-client-id': appId,
+        'x-client-secret': secretKey,
+        'x-api-version': Cashfree.XApiVersion || '2023-08-01',
+        'Content-Type': 'application/json',
+      };
+
+      console.log('[CASHFREE REQUEST DEBUG]', {
+        url: fullRequestUrl,
+        headerNames: Object.keys(headersUsed),
+        envValue: process.env.CASHFREE_ENV
+      });
+
       const cf = new Cashfree();
-      const response = await cf.PGCreateOrder(apiVersion, requestPayload);
+      const response = await cf.PGCreateOrder(requestPayload);
       
       if (!response.data || !response.data.payment_session_id) {
         throw new ApiError(500, 'Failed to obtain payment session from Cashfree Payment Gateway.');
@@ -114,9 +138,8 @@ class CashfreeService {
   async getOrderDetails(orderId) {
     this.init();
     try {
-      const apiVersion = envConfig.CASHFREE_API_VERSION || '2023-08-01';
       const cf = new Cashfree();
-      const response = await cf.PGFetchOrder(apiVersion, String(orderId));
+      const response = await cf.PGFetchOrder(String(orderId));
       return response.data;
     } catch (error) {
       console.error('[CASHFREE FETCH ORDER ERROR]', error?.response?.data || error.message);
