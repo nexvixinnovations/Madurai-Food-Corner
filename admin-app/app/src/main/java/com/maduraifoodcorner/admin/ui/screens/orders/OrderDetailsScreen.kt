@@ -137,6 +137,17 @@ fun OrderDetailsScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
+                                // Show category badge — highlight Snacks items
+                                val category = item.food_items?.category
+                                if (!category.isNullOrBlank()) {
+                                    val isSnacks = category.equals("Snacks", ignoreCase = true)
+                                    Text(
+                                        text = if (isSnacks) "🍟 Snacks" else category,
+                                        fontSize = 11.sp,
+                                        color = if (isSnacks) Color(0xFFF57C00) else Color.Gray,
+                                        fontWeight = if (isSnacks) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
                                 Text(
                                     text = "${item.quantity} x ₹${item.unit_price.toInt()}",
                                     fontSize = 12.sp,

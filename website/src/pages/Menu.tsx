@@ -11,7 +11,7 @@ import { Search, SlidersHorizontal, Utensils } from 'lucide-react';
 
 export const Menu: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [foodTypeFilter, setFoodTypeFilter] = useState<'All' | 'Veg' | 'Non-Veg'>('All');
+  const [foodTypeFilter, setFoodTypeFilter] = useState<'All' | 'Veg' | 'Non-Veg' | 'Snacks'>('All');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'name'>('default');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
 
@@ -25,9 +25,10 @@ export const Menu: React.FC = () => {
   const filteredFoods = useMemo(() => {
     return foods
       .filter((food) => {
-        // Food Type filter (Veg/Non-Veg/Offers)
+        // Food Type / Category filter
         if (foodTypeFilter === 'Veg' && food.food_type?.toLowerCase() !== 'veg') return false;
         if (foodTypeFilter === 'Non-Veg' && food.food_type?.toLowerCase() === 'veg') return false;
+        if (foodTypeFilter === 'Snacks' && food.category?.toLowerCase() !== 'snacks') return false;
 
         // Search Query filter
         if (searchQuery.trim()) {
@@ -100,7 +101,7 @@ export const Menu: React.FC = () => {
 
           {/* Swipeable Horizontal Filter Chips */}
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none pt-1">
-            {(['All', 'Veg', 'Non-Veg'] as const).map((type) => (
+            {(['All', 'Veg', 'Non-Veg', 'Snacks'] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setFoodTypeFilter(type)}
@@ -112,6 +113,7 @@ export const Menu: React.FC = () => {
               >
                 {type === 'Veg' && <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />}
                 {type === 'Non-Veg' && <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5" />}
+                {type === 'Snacks' && <span className="mr-1.5">🍟</span>}
                 <span>{type}</span>
               </button>
             ))}
@@ -129,8 +131,12 @@ export const Menu: React.FC = () => {
           <ErrorState onRetry={refetch} />
         ) : filteredFoods.length === 0 ? (
           <EmptyState
-            title="No Food Items Found"
-            description="No scheduled items match your selected filters. Try clearing your search query."
+            title={foodTypeFilter === 'Snacks' ? 'No Snacks Available Today' : 'No Food Items Found'}
+            description={
+              foodTypeFilter === 'Snacks'
+                ? 'No snack items are scheduled for today. Check back later or browse all items.'
+                : 'No scheduled items match your selected filters. Try clearing your search query.'
+            }
             actionLabel="Reset Filters"
             onAction={() => {
               setFoodTypeFilter('All');

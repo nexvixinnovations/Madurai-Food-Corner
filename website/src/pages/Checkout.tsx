@@ -181,9 +181,14 @@ export const Checkout: React.FC = () => {
       // 2. Obtain Cashfree Payment Session from Backend
       toast.loading('Initiating Cashfree Payment Gateway...', { id: 'payment-loading' });
 
+      // Use order_number in path; fall back to id if order_number is missing
+      const safeOrderNum = newOrder.order_number || newOrder.id;
+
       let sessionData;
       try {
-        const returnUrl = `${window.location.origin}/order-success/${newOrder.order_number}?order_id={order_id}&payment_status={order_status}`;
+        // Only use {order_id} as a Cashfree template variable — {order_status} is NOT supported
+        // Cashfree substitutes {order_id} with the actual order_id before redirecting
+        const returnUrl = `${window.location.origin}/order-success/${safeOrderNum}?order_id={order_id}&status=paid`;
         sessionData = await websiteApi.createCashfreeSession({
           order_id: newOrder.id,
           order_number: newOrder.order_number,
@@ -199,7 +204,7 @@ export const Checkout: React.FC = () => {
         toast.error(`Cashfree Payment Error: ${sessionErr.message || 'Unable to initiate Cashfree session'}`);
         // Navigate to order success with pending payment notification
         clearCart();
-        navigate(`/order-success/${newOrder.order_number}`);
+        navigate(`/order-success/${safeOrderNum}`);
         return;
       }
 
@@ -209,19 +214,21 @@ export const Checkout: React.FC = () => {
       const isProduction = import.meta.env.VITE_CASHFREE_MODE === 'production';
       const cashfree = await load({ mode: isProduction ? 'production' : 'sandbox' });
 
-      cashfree.checkout({
-        paymentSessionId: sessionData.payment_session_id,
-        redirectTarget: '_self',
-      });
-
-      // Trigger Confetti Celebration
+      // Trigger Confetti Celebration before navigating away
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 },
       });
 
+      // Clear cart BEFORE cashfree.checkout() triggers the full-page redirect.
+      // Code after checkout() with redirectTarget:'_self' may never execute.
       clearCart();
+
+      cashfree.checkout({
+        paymentSessionId: sessionData.payment_session_id,
+        redirectTarget: '_self',
+      });
     } catch (err: any) {
       toast.dismiss('payment-loading');
       toast.error(err.message || 'Failed to place order. Please try again.');

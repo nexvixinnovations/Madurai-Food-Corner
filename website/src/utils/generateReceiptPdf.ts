@@ -5,8 +5,10 @@ import { Order } from '../types';
 /**
  * Generate and download a clean, thermal-style PDF bill receipt for an order
  * @param order The order details object from backend
+ * @param isPaid Optional override — pass true if payment was confirmed via Cashfree redirect
+ *               even if the DB payment_status hasn't been updated yet by webhook
  */
-export const generateReceiptPdf = (order: Order): void => {
+export const generateReceiptPdf = (order: Order, isPaid?: boolean): void => {
   if (!order) return;
 
   // Create a portrait A5 PDF document for a compact bill receipt
@@ -54,7 +56,14 @@ export const generateReceiptPdf = (order: Order): void => {
   const customerPhone = order.customers?.phone || 'N/A';
   const orderType = order.order_type || 'Parcel';
   const paymentMethod = order.payment_method || 'Online';
-  const paymentStatus = (order.payment_status || 'Paid').toUpperCase();
+
+  // Resolve payment status: prefer DB value, fall back to isPaid override
+  const dbPaymentStatus = order.payment_status?.toLowerCase();
+  const resolvedIsPaid = isPaid || dbPaymentStatus === 'paid';
+  const paymentStatus = resolvedIsPaid ? 'PAID' : (order.payment_status || 'Pending').toUpperCase();
+
+  // Payment reference: use order_number as the Cashfree order reference
+  const paymentRef = orderNum;
 
   doc.setFont('helvetica', 'bold');
   doc.text(`Order No: ${orderNum}`, 10, y);
@@ -68,6 +77,13 @@ export const generateReceiptPdf = (order: Order): void => {
   y += 5;
   doc.text(`Order Type: ${orderType}`, 10, y);
   doc.text(`Payment: ${paymentMethod} (${paymentStatus})`, pageWidth - 10, y, { align: 'right' });
+
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Payment ID: ${paymentRef}`, 10, y);
+  doc.text(`Status: ${paymentStatus} via Cashfree`, pageWidth - 10, y, { align: 'right' });
 
   // Divider Line
   y += 4;
@@ -157,7 +173,8 @@ export const generateReceiptPdf = (order: Order): void => {
   doc.setTextColor(120, 120, 120);
   doc.text('We look forward to serving you again at Madurai Food Corner!', pageWidth / 2, y, { align: 'center' });
 
-  // Trigger File Download
+  // Trigger File Download — filename: <orderNumber>-receipt.pdf
+  // e.g. MFCW-2025-0042-receipt.pdf
   const fileName = `${orderNum}-receipt.pdf`;
   doc.save(fileName);
 };

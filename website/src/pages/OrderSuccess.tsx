@@ -13,7 +13,9 @@ export const OrderSuccess: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const paymentStatusParam = searchParams.get('payment_status');
+  // `payment_status` was the old (invalid) param — Cashfree only supports {order_id} substitution.
+  // New redirect uses `status=paid` as a static indicator from Checkout.tsx.
+  const paymentStatusParam = searchParams.get('payment_status') || searchParams.get('status');
   const cfOrderIdParam = searchParams.get('order_id');
   const queryOrderNum = searchParams.get('order_number');
 
@@ -47,7 +49,12 @@ export const OrderSuccess: React.FC = () => {
 
   if (isLoading) return <Loader fullScreen message="Confirming your order with kitchen..." />;
 
-  const isPaid = order?.payment_status?.toLowerCase() === 'paid' || paymentStatusParam === 'SUCCESS' || paymentStatusParam === 'PAID';
+  const isPaid =
+    order?.payment_status?.toLowerCase() === 'paid' ||
+    paymentStatusParam === 'SUCCESS' ||
+    paymentStatusParam === 'PAID' ||
+    paymentStatusParam === 'paid' ||
+    paymentStatusParam === 'success';
 
   return (
     <div className="min-h-screen bg-brand-cream dark:bg-zinc-950 py-16">
@@ -148,7 +155,7 @@ export const OrderSuccess: React.FC = () => {
           {order && (
             <button
               type="button"
-              onClick={() => generateReceiptPdf(order)}
+              onClick={() => generateReceiptPdf(order, isPaid)}
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-lg transition-all"
             >
               <Download className="w-4 h-4 text-amber-400" />

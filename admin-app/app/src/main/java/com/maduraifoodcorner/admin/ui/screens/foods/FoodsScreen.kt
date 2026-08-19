@@ -92,7 +92,7 @@ fun FoodsScreen(
     var showBulkConfirmDialog by remember { mutableStateOf<Boolean?>(null) }
     val context = LocalContext.current
 
-    val categories = listOf("All", "Non-Veg", "Veg", "Egg Items", "Combos", "Offers")
+    val categories = listOf("All", "Non-Veg", "Veg", "Egg Items", "Snacks", "Combos", "Offers")
 
     LaunchedEffect(Unit) {
         viewModel.loadFoods()
@@ -164,9 +164,11 @@ fun FoodsScreen(
                     }
                     is FoodsState.Success -> {
                         val filteredFoods = state.foods.filter { food ->
-                            if (selectedCategory == "All" || selectedCategory == "Combos" || selectedCategory == "Offers") false
-                            else food.category.equals(selectedCategory, ignoreCase = true) ||
-                                 food.food_type.equals(selectedCategory, ignoreCase = true)
+                            when (selectedCategory) {
+                                "All", "Combos", "Offers" -> false
+                                else -> food.category.equals(selectedCategory, ignoreCase = true) ||
+                                        food.food_type.equals(selectedCategory, ignoreCase = true)
+                            }
                         }
 
                         LazyColumn(
@@ -761,6 +763,7 @@ fun AddFoodDialog(
                 )
 
                 Text("Category:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                // Row 1: Non-Veg, Veg, Egg Items
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Non-Veg", "Veg", "Egg Items").forEach { cat ->
                         FilterChip(
@@ -769,6 +772,14 @@ fun AddFoodDialog(
                             label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                         )
                     }
+                }
+                // Row 2: Snacks
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = selectedCategory == "Snacks",
+                        onClick = { selectedCategory = "Snacks" },
+                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                    )
                 }
 
                 OutlinedTextField(
@@ -1251,6 +1262,7 @@ fun EditFoodDialog(
                 )
 
                 Text("Category:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                // Row 1: Non-Veg, Veg, Egg Items
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Non-Veg", "Veg", "Egg Items").forEach { cat ->
                         FilterChip(
@@ -1259,6 +1271,14 @@ fun EditFoodDialog(
                             label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                         )
                     }
+                }
+                // Row 2: Snacks
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = selectedCategory == "Snacks",
+                        onClick = { selectedCategory = "Snacks" },
+                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                    )
                 }
 
                 OutlinedTextField(
