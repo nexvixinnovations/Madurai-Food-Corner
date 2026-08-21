@@ -34,7 +34,7 @@ export const generateReceiptPdf = (order: Order, isPaid?: boolean): void => {
   doc.text('Taste the Pride of Madurai', pageWidth / 2, y, { align: 'center' });
 
   y += 4;
-  doc.text('www.maduraifoodcorner.com | +91 99999 99999', pageWidth / 2, y, { align: 'center' });
+  doc.text('Ph: +91 99522 50435  |  +91 77083 82018', pageWidth / 2, y, { align: 'center' });
 
   // Divider Line
   y += 5;
@@ -152,7 +152,7 @@ export const generateReceiptPdf = (order: Order, isPaid?: boolean): void => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(120, 20, 20);
-  doc.text('GRAND TOTAL:', pageWidth - 45, y);
+  doc.text('GRAND TOTAL:', 10, y);
   doc.text(`Rs. ${grandTotal}`, pageWidth - 10, y, { align: 'right' });
 
   // Divider & Footer
