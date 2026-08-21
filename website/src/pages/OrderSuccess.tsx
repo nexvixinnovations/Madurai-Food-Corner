@@ -10,7 +10,15 @@ import { generateReceiptPdf } from '../utils/generateReceiptPdf';
 export const OrderSuccess: React.FC = () => {
   const { orderNumber: pathOrderNum } = useParams<{ orderNumber: string }>();
   const [searchParams] = useSearchParams();
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<Order | null>(() => {
+    // Seed from sessionStorage immediately so the button appears even before API responds
+    try {
+      const cached = sessionStorage.getItem('mfc_last_order');
+      return cached ? (JSON.parse(cached) as Order) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
@@ -23,32 +31,42 @@ export const OrderSuccess: React.FC = () => {
   const orderNumber = pathOrderNum || queryOrderNum || cfOrderIdParam;
 
   useEffect(() => {
-    if (orderNumber) {
-      setIsLoading(true);
-      websiteApi
-        .trackOrder(orderNumber)
-        .then(async (data) => {
-          setOrder(data);
-          // If Cashfree redirected back with payment status info, trigger payment verification
-          if (paymentStatusParam || cfOrderIdParam) {
-            try {
-              const verifyRes = await websiteApi.verifyPayment(orderNumber);
-              if (verifyRes && verifyRes.paid) {
-                // Re-fetch updated order status from backend
-                const refreshedOrder = await websiteApi.trackOrder(orderNumber);
-                setOrder(refreshedOrder);
-              }
-            } catch (err) {
-              console.warn('Payment status auto-verification failed:', err);
-            }
-          }
-        })
-        .catch((err) => console.error('Failed to track order:', err))
-        .finally(() => setIsLoading(false));
+    if (!orderNumber) {
+      // No identifier available — stop loading immediately, show whatever we have
+      setIsLoading(false);
+      return;
     }
+
+    setIsLoading(true);
+    websiteApi
+      .trackOrder(orderNumber)
+      .then(async (data) => {
+        setOrder(data);
+        // Clear sessionStorage cache now that we have a fresh server response
+        try { sessionStorage.removeItem('mfc_last_order'); } catch (_) {}
+        // If Cashfree redirected back with payment status info, trigger payment verification
+        if (paymentStatusParam || cfOrderIdParam) {
+          try {
+            const verifyRes = await websiteApi.verifyPayment(orderNumber);
+            if (verifyRes && verifyRes.paid) {
+              // Re-fetch updated order status from backend
+              const refreshedOrder = await websiteApi.trackOrder(orderNumber);
+              setOrder(refreshedOrder);
+            }
+          } catch (err) {
+            console.warn('Payment status auto-verification failed:', err);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to track order:', err);
+        // Keep cached order visible — don't null it out on API failure
+      })
+      .finally(() => setIsLoading(false));
   }, [orderNumber, paymentStatusParam, cfOrderIdParam]);
 
   if (isLoading) return <Loader fullScreen message="Confirming your order with kitchen..." />;
+
 
   const isPaid =
     order?.payment_status?.toLowerCase() === 'paid' ||

@@ -1,7 +1,9 @@
 /**
- * Madurai Food Corner — Service Worker (mfc-pwa-v2)
+ * Madurai Food Corner — Service Worker (mfc-pwa-v3)
  *
- * Strategy summary
+ * ⚠️  When you change the caching strategy, bump CACHE_VERSION below.
+ *    The activate handler deletes ALL old caches, so existing users
+ *    automatically get a clean slate on next visit.
  * ────────────────
  * 1. Non-GET requests          → pass through (no intercept)
  * 2. External-origin requests  → pass through (no intercept)
@@ -22,7 +24,7 @@
  *   for all tabs to close.
  */
 
-const CACHE_VERSION = 'mfc-pwa-v2';
+const CACHE_VERSION = 'mfc-pwa-v3';
 
 /**
  * Small set of truly static files that are safe to cache for offline use.

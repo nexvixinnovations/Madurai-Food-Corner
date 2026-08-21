@@ -63,6 +63,9 @@ const placeOrder = asyncHandler(async (req, res) => {
 /**
  * Controller: Track Order by Order Number or ID
  * GET /api/website/orders/track/:orderNumber
+ *
+ * Uses a direct Prisma query (NOT getAllOrders) so that admin-only display
+ * rules such as the 3 PM clearing logic never affect customer order tracking.
  */
 const trackOrder = asyncHandler(async (req, res) => {
   const identifier = req.params.orderNumber;
@@ -70,16 +73,28 @@ const trackOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Order number or ID parameter is required.');
   }
 
-  // Try finding order by order_number search or ID
-  const orders = await orderService.getAllOrders({ search: identifier });
+  const prisma = require('../config/prisma');
 
-  let targetOrder = orders.find(
-    (o) => o.order_number.toLowerCase() === identifier.toLowerCase() || o.id === identifier
-  );
-
-  if (!targetOrder && orders.length > 0) {
-    targetOrder = orders[0];
-  }
+  // Direct lookup: try order_number first (case-insensitive), then UUID id
+  let targetOrder = await prisma.orders.findFirst({
+    where: {
+      OR: [
+        { order_number: { equals: identifier, mode: 'insensitive' } },
+        { id: identifier },
+      ],
+    },
+    include: {
+      customers: true,
+      order_items: {
+        include: {
+          food_items: true,
+          combos: true,
+          special_offers: true,
+        },
+      },
+      payments: true,
+    },
+  });
 
   if (!targetOrder) {
     throw new ApiError(404, `No order found with number or ID '${identifier}'.`);

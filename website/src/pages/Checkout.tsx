@@ -178,6 +178,11 @@ export const Checkout: React.FC = () => {
       const newOrder = await websiteApi.placeOrder(orderPayload);
       console.log("Checkout API Response:", newOrder);
 
+      // Cache order data in sessionStorage so OrderSuccess page has instant fallback
+      try {
+        sessionStorage.setItem('mfc_last_order', JSON.stringify(newOrder));
+      } catch (_) {}
+
       // 2. Obtain Cashfree Payment Session from Backend
       toast.loading('Initiating Cashfree Payment Gateway...', { id: 'payment-loading' });
 

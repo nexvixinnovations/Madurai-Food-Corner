@@ -15,11 +15,23 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Phase 1 — Unregister any stale/broken service workers from previous deploys.
+      // This runs for all existing visitors automatically (no manual DevTools clearing needed).
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.log('ServiceWorker registration failed: ', err);
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          const unregisterAll = registrations.map((reg) => {
+            // Only unregister our own SW (same origin) — leave third-party SWs alone.
+            if (reg.scope.startsWith(window.location.origin)) {
+              return reg.unregister();
+            }
           });
+          // Phase 2 — Register the fresh service worker once cleanup is done.
+          return Promise.all(unregisterAll);
+        }).then(() => {
+          // Small delay so the browser settles before registering the new SW.
+          return navigator.serviceWorker.register('/sw.js');
+        }).catch((err) => {
+          console.warn('[MFC] Service worker setup error:', err);
         });
       }
     </script>

@@ -1,0 +1,30 @@
+# Cloudflare Pages — Explicit Cache-Control Rules
+# ─────────────────────────────────────────────────────────────────────────────
+# index.html — NEVER cache. This is the SPA entry point. The browser and CDN
+# must always fetch the latest version so it picks up new hashed asset filenames.
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+
+# sw.js — NEVER cache. If the browser or CDN caches the old service worker,
+# the new SW never installs and visitors keep seeing stale content forever.
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+
+# manifest.json — short cache; may change with branding updates.
+/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Vite-hashed assets — safe to cache forever.
+# Vite embeds a content hash in every filename (e.g. index-Dm7hti3U.js).
+# A new deploy produces NEW filenames, so the old immutable cached files
+# are automatically bypassed — no cache invalidation needed.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Public images — moderate cache with revalidation.
+/logo.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=3600
+/banner.jpg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=3600
