@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, Download, CreditCard } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Download, CreditCard, Loader2 } from 'lucide-react';
 import { websiteApi } from '../services/api';
 import { Order } from '../types';
 import { formatCurrency, formatDate } from '../utils/formatters';
@@ -12,6 +12,7 @@ export const OrderSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
   // `payment_status` was the old (invalid) param — Cashfree only supports {order_id} substitution.
   // New redirect uses `status=paid` as a static indicator from Checkout.tsx.
@@ -155,11 +156,25 @@ export const OrderSuccess: React.FC = () => {
           {order && (
             <button
               type="button"
-              onClick={() => generateReceiptPdf(order, isPaid)}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-lg transition-all"
+              disabled={isPdfLoading}
+              onClick={async () => {
+                setIsPdfLoading(true);
+                try {
+                  generateReceiptPdf(order, isPaid);
+                } catch (err) {
+                  console.error('PDF generation failed:', err);
+                } finally {
+                  setIsPdfLoading(false);
+                }
+              }}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-lg transition-all"
             >
-              <Download className="w-4 h-4 text-amber-400" />
-              <span>Download Receipt (PDF)</span>
+              {isPdfLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+              ) : (
+                <Download className="w-4 h-4 text-amber-400" />
+              )}
+              <span>{isPdfLoading ? 'Generating PDF...' : 'Download Receipt (PDF)'}</span>
             </button>
           )}
 
