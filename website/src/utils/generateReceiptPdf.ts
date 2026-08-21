@@ -3,178 +3,225 @@ import { autoTable } from 'jspdf-autotable';
 import { Order } from '../types';
 
 /**
- * Generate and download a clean, thermal-style PDF bill receipt for an order
- * @param order The order details object from backend
- * @param isPaid Optional override — pass true if payment was confirmed via Cashfree redirect
- *               even if the DB payment_status hasn't been updated yet by webhook
+ * Generate and download a thermal-style PDF bill receipt for an order.
+ *
+ * Layout:
+ *   MADURAI FOOD CORNER
+ *   RESTAURANT & CATERING
+ *   ----------------------------------------
+ *   Contact: 9952250435 / 7708382018
+ *   ----------------------------------------
+ *   Order #: MFCW-21-08-009
+ *   Date: <date>          Time: <time>
+ *   Customer: <name>      Phone: <phone>
+ *   Order Type: <type>
+ *   ----------------------------------------
+ *   Item table (Item | Qty | Price | Total)
+ *   ----------------------------------------
+ *   Subtotal:             <amt>
+ *   Discount:            -<amt>
+ *   GRAND TOTAL:          <amt>
+ *   ----------------------------------------
+ *   Payment: <method> — <status>
+ *   ----------------------------------------
+ *        Thank you for dining with us!
+ *        9952250435 / 7708382018
+ *
+ * @param order   The order details object from backend
+ * @param isPaid  Optional override — pass true if payment was confirmed via Cashfree redirect
+ *                even if the DB payment_status hasn't been updated yet by webhook
  */
 export const generateReceiptPdf = (order: Order, isPaid?: boolean): void => {
   if (!order) return;
 
-  // Create a portrait A5 PDF document for a compact bill receipt
+  // ── Document setup ──────────────────────────────────────────────────────────
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a5',
+    format: 'a5', // ~148 × 210 mm — compact bill size
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth(); // ~148mm for A5
-  let y = 12;
+  const W = doc.internal.pageSize.getWidth(); // ≈ 148 mm
+  const MARGIN = 10;
+  const SEPARATOR = '- - - - - - - - - - - - - - - - - - - - - - - - - -';
+  let y = 14;
 
-  // Title & Header
+  // ── Helper: draw a dashed separator line ────────────────────────────────────
+  const separator = () => {
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(SEPARATOR, W / 2, y, { align: 'center' });
+    y += 5;
+  };
+
+  // ── Helper: right-aligned label + value pair ─────────────────────────────────
+  const labelValue = (label: string, value: string, bold = false) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text(label, W - MARGIN - 48, y);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.text(value, W - MARGIN, y, { align: 'right' });
+    y += 5;
+  };
+
+  // ── Resolve order data ───────────────────────────────────────────────────────
+  const orderNum       = order.order_number || order.id || 'N/A';
+  const orderDateObj   = order.created_at ? new Date(order.created_at) : new Date();
+  const dateStr        = orderDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeStr        = orderDateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const customerName   = order.customers?.name || 'Valued Customer';
+  const customerPhone  = order.customers?.phone || 'N/A';
+  const orderType      = order.order_type
+    ? order.order_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Parcel';
+  const paymentMethod  = order.payment_method
+    ? order.payment_method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Online';
+
+  const dbPaymentStatus  = order.payment_status?.toLowerCase();
+  const resolvedIsPaid   = isPaid || dbPaymentStatus === 'paid';
+  const paymentStatusStr = resolvedIsPaid ? 'PAID' : (order.payment_status || 'Pending').toUpperCase();
+
+  const subtotal       = Number(order.subtotal ?? order.total_amount ?? 0);
+  const discountAmount = Number(order.discount_amount ?? 0);
+  const grandTotal     = Number(order.total_amount ?? 0);
+
+  // ── HEADER ───────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(120, 20, 20); // Brand Maroon
-  doc.text('MADURAI FOOD CORNER', pageWidth / 2, y, { align: 'center' });
+  doc.setFontSize(17);
+  doc.setTextColor(120, 20, 20); // brand maroon
+  doc.text('MADURAI FOOD CORNER', W / 2, y, { align: 'center' });
 
-  y += 5;
+  y += 5.5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
-  doc.text('Taste the Pride of Madurai', pageWidth / 2, y, { align: 'center' });
+  doc.setTextColor(80, 80, 80);
+  doc.text('RESTAURANT & CATERING', W / 2, y, { align: 'center' });
 
-  y += 4;
-  doc.text('Ph: +91 99522 50435  |  +91 77083 82018', pageWidth / 2, y, { align: 'center' });
-
-  // Divider Line
   y += 5;
-  doc.setLineWidth(0.4);
-  doc.setDrawColor(180, 180, 180);
-  doc.line(10, y, pageWidth - 10, y);
+  separator();
 
-  // Order Details Header Section
-  y += 6;
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(40, 40, 40);
+  doc.text('Contact: 9952250435 / 7708382018', W / 2, y, { align: 'center' });
 
-  const orderNum = order.order_number || order.id || 'N/A';
-  const orderDateObj = order.created_at ? new Date(order.created_at) : new Date();
-  const dateStr = orderDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  const timeStr = orderDateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  y += 5;
+  separator();
 
-  const customerName = order.customers?.name || 'Valued Customer';
-  const customerPhone = order.customers?.phone || 'N/A';
-  const orderType = order.order_type || 'Parcel';
-  const paymentMethod = order.payment_method || 'Online';
-
-  // Resolve payment status: prefer DB value, fall back to isPaid override
-  const dbPaymentStatus = order.payment_status?.toLowerCase();
-  const resolvedIsPaid = isPaid || dbPaymentStatus === 'paid';
-  const paymentStatus = resolvedIsPaid ? 'PAID' : (order.payment_status || 'Pending').toUpperCase();
-
-  // Payment reference: use order_number as the Cashfree order reference
-  const paymentRef = orderNum;
-
+  // ── ORDER META ───────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.text(`Order No: ${orderNum}`, 10, y);
-  doc.text(`Date: ${dateStr}  ${timeStr}`, pageWidth - 10, y, { align: 'right' });
-
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  doc.text(`Order #: ${orderNum}`, MARGIN, y);
   y += 5;
+
   doc.setFont('helvetica', 'normal');
-  doc.text(`Customer: ${customerName}`, 10, y);
-  doc.text(`Phone: ${customerPhone}`, pageWidth - 10, y, { align: 'right' });
-
+  doc.text(`Date: ${dateStr}`, MARGIN, y);
+  doc.text(`Time: ${timeStr}`, W - MARGIN, y, { align: 'right' });
   y += 5;
-  doc.text(`Order Type: ${orderType}`, 10, y);
-  doc.text(`Payment: ${paymentMethod} (${paymentStatus})`, pageWidth - 10, y, { align: 'right' });
 
+  doc.text(`Customer: ${customerName}`, MARGIN, y);
+  doc.text(`Phone: ${customerPhone}`, W - MARGIN, y, { align: 'right' });
   y += 5;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(80, 80, 80);
-  doc.text(`Payment ID: ${paymentRef}`, 10, y);
-  doc.text(`Status: ${paymentStatus} via Cashfree`, pageWidth - 10, y, { align: 'right' });
 
-  // Divider Line
-  y += 4;
-  doc.line(10, y, pageWidth - 10, y);
+  doc.text(`Order Type: ${orderType}`, MARGIN, y);
+  y += 5;
 
-  // Itemized Table
-  const tableHead = [['Item Description', 'Qty', 'Unit Price', 'Total']];
+  separator();
+
+  // ── ITEMS TABLE ──────────────────────────────────────────────────────────────
+  const tableHead = [['Item', 'Qty', 'Price', 'Total']];
   const tableBody = (order.order_items || []).map((item) => {
-    const name = item.food_items?.name || item.combos?.name || item.special_offers?.title || 'Food Item';
-    const qty = String(item.quantity || 1);
-    const unitPrice = `Rs. ${Number(item.unit_price || 0).toFixed(2)}`;
-    const lineTotal = `Rs. ${Number(item.line_total || 0).toFixed(2)}`;
+    const name      = item.food_items?.name || item.combos?.name || item.special_offers?.title || 'Food Item';
+    const qty       = String(item.quantity || 1);
+    const unitPrice = `Rs.${Number(item.unit_price || 0).toFixed(2)}`;
+    const lineTotal = `Rs.${Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 1))).toFixed(2)}`;
     return [name, qty, unitPrice, lineTotal];
   });
 
   autoTable(doc, {
-    startY: y + 2,
+    startY: y,
     head: tableHead,
     body: tableBody,
     theme: 'plain',
     styles: {
+      font: 'helvetica',
       fontSize: 8.5,
-      cellPadding: 2,
+      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
       textColor: [30, 30, 30],
     },
     headStyles: {
       fillColor: [245, 240, 235],
       textColor: [120, 20, 20],
       fontStyle: 'bold',
+      lineColor: [200, 200, 200],
+      lineWidth: 0.2,
     },
     columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { halign: 'center', cellWidth: 15 },
-      2: { halign: 'right', cellWidth: 25 },
-      3: { halign: 'right', cellWidth: 25 },
+      0: { cellWidth: 'auto', halign: 'left' },
+      1: { cellWidth: 12, halign: 'center' },
+      2: { cellWidth: 26, halign: 'right' },
+      3: { cellWidth: 26, halign: 'right' },
     },
-    margin: { left: 10, right: 10 },
+    margin: { left: MARGIN, right: MARGIN },
   });
 
-  // Get final Y position after table
-  const finalY = (doc as any).lastAutoTable?.finalY || y + 30;
-  y = finalY + 4;
+  // Get Y after table
+  y = ((doc as any).lastAutoTable?.finalY ?? y + 30) + 3;
 
-  // Financial Totals Section
-  doc.line(10, y, pageWidth - 10, y);
-  y += 5;
+  separator();
 
-  const subtotal = Number(order.subtotal || order.total_amount || 0).toFixed(2);
-  const discountAmount = Number(order.discount_amount || 0).toFixed(2);
-  const grandTotal = Number(order.total_amount || 0).toFixed(2);
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Subtotal:', pageWidth - 45, y);
-  doc.text(`Rs. ${subtotal}`, pageWidth - 10, y, { align: 'right' });
-
-  if (Number(discountAmount) > 0) {
-    y += 4.5;
-    doc.setTextColor(200, 50, 50);
-    doc.text('Discount:', pageWidth - 45, y);
-    doc.text(`-Rs. ${discountAmount}`, pageWidth - 10, y, { align: 'right' });
-    doc.setTextColor(40, 40, 40);
-  }
-
-  y += 5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(120, 20, 20);
-  doc.text('GRAND TOTAL:', 10, y);
-  doc.text(`Rs. ${grandTotal}`, pageWidth - 10, y, { align: 'right' });
-
-  // Divider & Footer
-  y += 6;
-  doc.setLineWidth(0.4);
-  doc.setDrawColor(180, 180, 180);
-  doc.line(10, y, pageWidth - 10, y);
-
-  y += 6;
-  doc.setFont('helvetica', 'bold');
+  // ── TOTALS ───────────────────────────────────────────────────────────────────
   doc.setFontSize(9);
   doc.setTextColor(40, 40, 40);
-  doc.text('Thank you for your order!', pageWidth / 2, y, { align: 'center' });
+  labelValue('Subtotal:', `Rs.${subtotal.toFixed(2)}`);
 
-  y += 4;
+  if (discountAmount > 0) {
+    doc.setTextColor(200, 50, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Discount:', W - MARGIN - 48, y);
+    doc.text(`-Rs.${discountAmount.toFixed(2)}`, W - MARGIN, y, { align: 'right' });
+    doc.setTextColor(40, 40, 40);
+    y += 5;
+  }
+
+  // Grand Total — larger, bold, maroon
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.setTextColor(120, 20, 20);
+  doc.text('GRAND TOTAL:', MARGIN, y);
+  doc.text(`Rs.${grandTotal.toFixed(2)}`, W - MARGIN, y, { align: 'right' });
+  y += 6;
+
+  separator();
+
+  // ── PAYMENT STATUS ───────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text('We look forward to serving you again at Madurai Food Corner!', pageWidth / 2, y, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  const paymentLine = `Payment: ${paymentMethod} — ${paymentStatusStr}`;
+  doc.text(paymentLine, W / 2, y, { align: 'center' });
+  y += 5;
 
-  // Trigger File Download — filename: <orderNumber>-receipt.pdf
-  // e.g. MFCW-2025-0042-receipt.pdf
-  const fileName = `${orderNum}-receipt.pdf`;
-  doc.save(fileName);
+  separator();
+
+  // ── FOOTER ───────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(120, 20, 20);
+  doc.text('Thank you for dining with us!', W / 2, y, { align: 'center' });
+
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text('9952250435 / 7708382018', W / 2, y, { align: 'center' });
+
+  // ── Save ──────────────────────────────────────────────────────────────────────
+  // File name: e.g. MFCW-21-08-009-bill.pdf
+  doc.save(`${orderNum}-bill.pdf`);
 };
