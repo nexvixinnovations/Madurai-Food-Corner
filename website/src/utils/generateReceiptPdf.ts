@@ -3,225 +3,312 @@ import { autoTable } from 'jspdf-autotable';
 import { Order } from '../types';
 
 /**
- * Generate and download a thermal-style PDF bill receipt for an order.
+ * Generate and download a formatted, professional PDF bill/receipt for a restaurant order.
  *
- * Layout:
- *   MADURAI FOOD CORNER
- *   RESTAURANT & CATERING
- *   ----------------------------------------
- *   Contact: 9952250435 / 7708382018
- *   ----------------------------------------
- *   Order #: MFCW-21-08-009
- *   Date: <date>          Time: <time>
- *   Customer: <name>      Phone: <phone>
- *   Order Type: <type>
- *   ----------------------------------------
- *   Item table (Item | Qty | Price | Total)
- *   ----------------------------------------
- *   Subtotal:             <amt>
- *   Discount:            -<amt>
- *   GRAND TOTAL:          <amt>
- *   ----------------------------------------
- *   Payment: <method> — <status>
- *   ----------------------------------------
- *        Thank you for dining with us!
- *        9952250435 / 7708382018
- *
- * @param order   The order details object from backend
- * @param isPaid  Optional override — pass true if payment was confirmed via Cashfree redirect
- *                even if the DB payment_status hasn't been updated yet by webhook
+ * @param order   The order details object
+ * @param isPaid  Optional override flag for verified payment
  */
 export const generateReceiptPdf = (order: Order, isPaid?: boolean): void => {
-  if (!order) return;
+  if (!order) {
+    console.error('Cannot generate PDF: order object is empty');
+    return;
+  }
 
-  // ── Document setup ──────────────────────────────────────────────────────────
+  // ── Document Setup (A5 Portrait: 148 x 210 mm) ─────────────────────────────
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a5', // ~148 × 210 mm — compact bill size
+    format: 'a5',
   });
 
-  const W = doc.internal.pageSize.getWidth(); // ≈ 148 mm
-  const MARGIN = 10;
-  const SEPARATOR = '- - - - - - - - - - - - - - - - - - - - - - - - - -';
-  let y = 14;
+  const pageWidth = doc.internal.pageSize.getWidth(); // ~148 mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // ~210 mm
+  const margin = 10;
+  const contentWidth = pageWidth - margin * 2; // ~128 mm
+  let currentY = 12;
 
-  // ── Helper: draw a dashed separator line ────────────────────────────────────
-  const separator = () => {
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(160, 160, 160);
-    doc.text(SEPARATOR, W / 2, y, { align: 'center' });
-    y += 5;
-  };
+  // ── Color Palette ──────────────────────────────────────────────────────────
+  const colorMaroon: [number, number, number] = [139, 26, 26]; // #8B1A1A
+  const colorGold: [number, number, number] = [217, 119, 6]; // #D97706
+  const colorDark: [number, number, number] = [31, 41, 55]; // #1F2937
+  const colorMuted: [number, number, number] = [107, 114, 128]; // #6B7280
+  const colorLine: [number, number, number] = [229, 231, 235]; // #E5E7EB
+  const colorGreen: [number, number, number] = [16, 149, 106]; // #10956A
 
-  // ── Helper: right-aligned label + value pair ─────────────────────────────────
-  const labelValue = (label: string, value: string, bold = false) => {
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(40, 40, 40);
-    doc.text(label, W - MARGIN - 48, y);
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.text(value, W - MARGIN, y, { align: 'right' });
-    y += 5;
-  };
+  // ── Draw Top Brand Accent Bar ──────────────────────────────────────────────
+  doc.setFillColor(...colorMaroon);
+  doc.rect(0, 0, pageWidth, 4, 'F');
 
-  // ── Resolve order data ───────────────────────────────────────────────────────
-  const orderNum       = order.order_number || order.id || 'N/A';
-  const orderDateObj   = order.created_at ? new Date(order.created_at) : new Date();
-  const dateStr        = orderDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  const timeStr        = orderDateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const customerName   = order.customers?.name || 'Valued Customer';
-  const customerPhone  = order.customers?.phone || 'N/A';
-  const orderType      = order.order_type
+  // ── Restaurant Header ──────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...colorMaroon);
+  doc.text('MADURAI FOOD CORNER', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 4.5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...colorMuted);
+  doc.text('AUTHENTIC SOUTH INDIAN CUISINE & CATERING', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 4;
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(...colorDark);
+  doc.text('Contact: +91 99522 50435 / +91 77083 82018', pageWidth / 2, currentY, { align: 'center' });
+  currentY += 4.5;
+
+  // Decorative Divider
+  doc.setDrawColor(...colorLine);
+  doc.setLineWidth(0.3);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 4;
+
+  // ── Document Title Badge ───────────────────────────────────────────────────
+  doc.setFillColor(248, 244, 239);
+  doc.roundedRect(margin, currentY, contentWidth, 6.5, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...colorMaroon);
+  doc.text('TAX INVOICE / ORDER BILL', pageWidth / 2, currentY + 4.5, { align: 'center' });
+  currentY += 9;
+
+  // ── Order Meta Info Grid ───────────────────────────────────────────────────
+  const orderNum = order.order_number || order.id || 'N/A';
+  const orderDateObj = order.created_at ? new Date(order.created_at) : new Date();
+  const dateStr = orderDateObj.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const timeStr = orderDateObj.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const customerName = order.customers?.name || (order as any).customer_name || 'Valued Customer';
+  const customerPhone = order.customers?.phone || (order as any).customer_phone || 'N/A';
+
+  const orderType = order.order_type
     ? order.order_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
     : 'Parcel';
-  const paymentMethod  = order.payment_method
+
+  const paymentMethod = order.payment_method
     ? order.payment_method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
     : 'Online';
 
-  const dbPaymentStatus  = order.payment_status?.toLowerCase();
-  const resolvedIsPaid   = isPaid || dbPaymentStatus === 'paid';
+  const dbPaymentStatus = order.payment_status?.toLowerCase();
+  const resolvedIsPaid = isPaid || dbPaymentStatus === 'paid' || dbPaymentStatus === 'success';
   const paymentStatusStr = resolvedIsPaid ? 'PAID' : (order.payment_status || 'Pending').toUpperCase();
 
-  const subtotal       = Number(order.subtotal ?? order.total_amount ?? 0);
-  const discountAmount = Number(order.discount_amount ?? 0);
-  const grandTotal     = Number(order.total_amount ?? 0);
-
-  // ── HEADER ───────────────────────────────────────────────────────────────────
+  // Left Column
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
-  doc.setTextColor(120, 20, 20); // brand maroon
-  doc.text('MADURAI FOOD CORNER', W / 2, y, { align: 'center' });
-
-  y += 5.5;
+  doc.setTextColor(...colorDark);
+  doc.text(`Order No: `, margin, currentY);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.text('RESTAURANT & CATERING', W / 2, y, { align: 'center' });
+  doc.setTextColor(...colorMaroon);
+  doc.text(`${orderNum}`, margin + 16, currentY);
 
-  y += 5;
-  separator();
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  doc.text('Contact: 9952250435 / 7708382018', W / 2, y, { align: 'center' });
-
-  y += 5;
-  separator();
-
-  // ── ORDER META ───────────────────────────────────────────────────────────────
+  // Right Column
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  doc.text(`Order #: ${orderNum}`, MARGIN, y);
-  y += 5;
-
+  doc.setTextColor(...colorDark);
+  doc.text(`Date: `, pageWidth / 2 + 5, currentY);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Date: ${dateStr}`, MARGIN, y);
-  doc.text(`Time: ${timeStr}`, W - MARGIN, y, { align: 'right' });
-  y += 5;
+  doc.text(`${dateStr} ${timeStr}`, pageWidth / 2 + 15, currentY);
+  currentY += 4.5;
 
-  doc.text(`Customer: ${customerName}`, MARGIN, y);
-  doc.text(`Phone: ${customerPhone}`, W - MARGIN, y, { align: 'right' });
-  y += 5;
+  // Row 2
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Customer: `, margin, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${customerName}`, margin + 16, currentY);
 
-  doc.text(`Order Type: ${orderType}`, MARGIN, y);
-  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Phone: `, pageWidth / 2 + 5, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${customerPhone}`, pageWidth / 2 + 17, currentY);
+  currentY += 4.5;
 
-  separator();
+  // Row 3
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Order Type: `, margin, currentY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${orderType}`, margin + 18, currentY);
 
-  // ── ITEMS TABLE ──────────────────────────────────────────────────────────────
-  const tableHead = [['Item', 'Qty', 'Price', 'Total']];
-  const tableBody = (order.order_items || []).map((item) => {
-    const name      = item.food_items?.name || item.combos?.name || item.special_offers?.title || 'Food Item';
-    const qty       = String(item.quantity || 1);
-    const unitPrice = `Rs.${Number(item.unit_price || 0).toFixed(2)}`;
-    const lineTotal = `Rs.${Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 1))).toFixed(2)}`;
-    return [name, qty, unitPrice, lineTotal];
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Payment: `, pageWidth / 2 + 5, currentY);
+  doc.setFont('helvetica', 'bold');
+  if (resolvedIsPaid) {
+    doc.setTextColor(...colorGreen);
+  } else {
+    doc.setTextColor(...colorGold);
+  }
+  doc.text(`${paymentStatusStr} (${paymentMethod})`, pageWidth / 2 + 20, currentY);
+  currentY += 5;
+
+  // Divider before items table
+  doc.setDrawColor(...colorLine);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 3;
+
+  // ── Items Table Preparation ────────────────────────────────────────────────
+  const tableHead = [['#', 'Item Description', 'Qty', 'Rate', 'Amount']];
+  const itemsList = order.order_items || [];
+
+  const tableBody: string[][] = itemsList.map((item, idx) => {
+    let name: string =
+      item.food_items?.name ||
+      item.combos?.name ||
+      item.special_offers?.title ||
+      (item as any).name ||
+      (item as any).food_item_name ||
+      (item as any).title ||
+      `Food Item ${idx + 1}`;
+
+    // If combo, append breakdown of items
+    if (item.combos?.combo_items && item.combos.combo_items.length > 0) {
+      const comboSubItems = item.combos.combo_items
+        .map((ci) => ci.food_items?.name || '')
+        .filter(Boolean)
+        .join(' + ');
+      if (comboSubItems) {
+        name = `${name}\n(${comboSubItems})`;
+      }
+    }
+
+    const qty = String(item.quantity || 1);
+    const unitPriceNum = Number(item.unit_price || 0);
+    const lineTotalNum = Number(item.line_total ?? unitPriceNum * Number(item.quantity || 1));
+
+    return [
+      String(idx + 1),
+      String(name),
+      String(qty),
+      `Rs. ${unitPriceNum.toFixed(2)}`,
+      `Rs. ${lineTotalNum.toFixed(2)}`,
+    ];
   });
 
+  // Render Table via jspdf-autotable
   autoTable(doc, {
-    startY: y,
+    startY: currentY,
     head: tableHead,
     body: tableBody,
-    theme: 'plain',
+    theme: 'grid',
     styles: {
       font: 'helvetica',
-      fontSize: 8.5,
-      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
-      textColor: [30, 30, 30],
+      fontSize: 8,
+      cellPadding: { top: 2.2, bottom: 2.2, left: 1.8, right: 1.8 },
+      textColor: [40, 40, 40],
+      lineColor: [230, 230, 230],
+      lineWidth: 0.15,
     },
     headStyles: {
-      fillColor: [245, 240, 235],
-      textColor: [120, 20, 20],
+      fillColor: [248, 241, 235],
+      textColor: [139, 26, 26],
       fontStyle: 'bold',
-      lineColor: [200, 200, 200],
+      fontSize: 8,
+      halign: 'center',
       lineWidth: 0.2,
+      lineColor: [215, 205, 195],
     },
     columnStyles: {
-      0: { cellWidth: 'auto', halign: 'left' },
-      1: { cellWidth: 12, halign: 'center' },
-      2: { cellWidth: 26, halign: 'right' },
-      3: { cellWidth: 26, halign: 'right' },
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 'auto', halign: 'left' },
+      2: { cellWidth: 12, halign: 'center' },
+      3: { cellWidth: 24, halign: 'right' },
+      4: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
     },
-    margin: { left: MARGIN, right: MARGIN },
+    margin: { left: margin, right: margin },
   });
 
-  // Get Y after table
-  y = ((doc as any).lastAutoTable?.finalY ?? y + 30) + 3;
+  // Get position right after autoTable
+  let finalY = ((doc as any).lastAutoTable?.finalY ?? currentY + 30) + 3;
 
-  separator();
-
-  // ── TOTALS ───────────────────────────────────────────────────────────────────
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  labelValue('Subtotal:', `Rs.${subtotal.toFixed(2)}`);
-
-  if (discountAmount > 0) {
-    doc.setTextColor(200, 50, 50);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('Discount:', W - MARGIN - 48, y);
-    doc.text(`-Rs.${discountAmount.toFixed(2)}`, W - MARGIN, y, { align: 'right' });
-    doc.setTextColor(40, 40, 40);
-    y += 5;
+  // If table went near bottom of page, add page to keep summary clean
+  if (finalY > pageHeight - 48) {
+    doc.addPage();
+    finalY = 14;
   }
 
-  // Grand Total — larger, bold, maroon
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(120, 20, 20);
-  doc.text('GRAND TOTAL:', MARGIN, y);
-  doc.text(`Rs.${grandTotal.toFixed(2)}`, W - MARGIN, y, { align: 'right' });
-  y += 6;
+  // ── Calculation Totals Box ─────────────────────────────────────────────────
+  const subtotal = Number(order.subtotal ?? order.total_amount ?? 0);
+  const discountAmount = Number(order.discount_amount ?? 0);
+  const grandTotal = Number(order.total_amount ?? 0);
 
-  separator();
+  const summaryWidth = 62;
+  const summaryX = pageWidth - margin - summaryWidth;
+  let summaryY = finalY;
 
-  // ── PAYMENT STATUS ───────────────────────────────────────────────────────────
+  // Subtotal row
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...colorMuted);
+  doc.text('Subtotal:', summaryX, summaryY + 3);
+  doc.setTextColor(...colorDark);
+  doc.text(`Rs. ${subtotal.toFixed(2)}`, pageWidth - margin, summaryY + 3, { align: 'right' });
+  summaryY += 4.5;
+
+  // Discount row (if any)
+  if (discountAmount > 0) {
+    doc.setTextColor(...colorMaroon);
+    const discountPercent = Number(order.discount_percentage || 0);
+    const discountLabel = discountPercent > 0 ? `Discount (${discountPercent}%):` : 'Discount:';
+    doc.text(discountLabel, summaryX, summaryY + 3);
+    doc.text(`- Rs. ${discountAmount.toFixed(2)}`, pageWidth - margin, summaryY + 3, { align: 'right' });
+    summaryY += 4.5;
+  }
+
+  // Grand Total Box
+  doc.setFillColor(254, 243, 199); // Amber-100 tint
+  doc.setDrawColor(...colorGold);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(summaryX - 2, summaryY, summaryWidth + 2, 7, 1.2, 1.2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  const paymentLine = `Payment: ${paymentMethod} — ${paymentStatusStr}`;
-  doc.text(paymentLine, W / 2, y, { align: 'center' });
-  y += 5;
+  doc.setTextColor(...colorMaroon);
+  doc.text('GRAND TOTAL:', summaryX + 2, summaryY + 4.8);
+  doc.text(`Rs. ${grandTotal.toFixed(2)}`, pageWidth - margin - 2, summaryY + 4.8, { align: 'right' });
+  summaryY += 10;
 
-  separator();
+  // ── Special Instructions (if present) ──────────────────────────────────────
+  if (order.special_instruction) {
+    if (summaryY > pageHeight - 35) {
+      doc.addPage();
+      summaryY = 14;
+    }
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...colorMuted);
+    doc.text(`Special Notes: "${order.special_instruction}"`, margin, summaryY);
+    summaryY += 5;
+  }
 
-  // ── FOOTER ───────────────────────────────────────────────────────────────────
+  // ── Footer Section ─────────────────────────────────────────────────────────
+  if (summaryY > pageHeight - 25) {
+    doc.addPage();
+    summaryY = 14;
+  }
+
+  doc.setDrawColor(...colorLine);
+  doc.setLineWidth(0.2);
+  doc.line(margin, summaryY, pageWidth - margin, summaryY);
+  summaryY += 4;
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(120, 20, 20);
-  doc.text('Thank you for dining with us!', W / 2, y, { align: 'center' });
-
-  y += 5;
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.setTextColor(80, 80, 80);
-  doc.text('9952250435 / 7708382018', W / 2, y, { align: 'center' });
+  doc.setTextColor(...colorMaroon);
+  doc.text('Thank you for dining with Madurai Food Corner!', pageWidth / 2, summaryY, { align: 'center' });
+  summaryY += 3.8;
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
-  // File name: e.g. MFCW-21-08-009-bill.pdf
-  doc.save(`${orderNum}-bill.pdf`);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...colorMuted);
+  doc.text('This is a computer generated receipt. For party or bulk orders call 9952250435.', pageWidth / 2, summaryY, { align: 'center' });
+
+  // ── Save / Download PDF ────────────────────────────────────────────────────
+  const cleanOrderName = orderNum.replace(/[^a-zA-Z0-9-_]/g, '_');
+  doc.save(`${cleanOrderName}-bill.pdf`);
 };

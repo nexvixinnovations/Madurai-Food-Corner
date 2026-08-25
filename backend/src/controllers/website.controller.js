@@ -75,21 +75,43 @@ const trackOrder = asyncHandler(async (req, res) => {
 
   const prisma = require('../config/prisma');
 
-  // Direct lookup: try order_number first (case-insensitive), then UUID id
+  // Validate if identifier is UUID to avoid PostgreSQL invalid input syntax error
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(identifier).trim());
+  const whereCondition = isUuid
+    ? {
+        OR: [
+          { order_number: { equals: identifier.trim(), mode: 'insensitive' } },
+          { id: identifier.trim() },
+        ],
+      }
+    : { order_number: { equals: identifier.trim(), mode: 'insensitive' } };
+
+  // Direct lookup: query with safe where condition
   let targetOrder = await prisma.orders.findFirst({
-    where: {
-      OR: [
-        { order_number: { equals: identifier, mode: 'insensitive' } },
-        { id: identifier },
-      ],
-    },
+    where: whereCondition,
     include: {
       customers: true,
       order_items: {
         include: {
           food_items: true,
-          combos: true,
-          special_offers: true,
+          combos: {
+            include: {
+              combo_items: {
+                include: {
+                  food_items: true,
+                },
+              },
+            },
+          },
+          special_offers: {
+            include: {
+              special_offer_items: {
+                include: {
+                  food_items: true,
+                },
+              },
+            },
+          },
         },
       },
       payments: true,

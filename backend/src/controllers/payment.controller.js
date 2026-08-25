@@ -119,13 +119,18 @@ const verifyCashfreePayment = asyncHandler(async (req, res) => {
   const cfOrder = await cashfreeService.getOrderDetails(order_id);
 
   if (cfOrder && cfOrder.order_status === 'PAID') {
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(order_id).trim());
+    const whereCond = isUuid
+      ? {
+          OR: [
+            { id: String(order_id).trim() },
+            { order_number: { equals: String(order_id).trim(), mode: 'insensitive' } },
+          ],
+        }
+      : { order_number: { equals: String(order_id).trim(), mode: 'insensitive' } };
+
     const targetOrder = await prisma.orders.findFirst({
-      where: {
-        OR: [
-          { id: String(order_id) },
-          { order_number: String(order_id) },
-        ],
-      },
+      where: whereCond,
     });
 
     if (targetOrder) {
@@ -160,13 +165,18 @@ const handleCashfreeWebhook = asyncHandler(async (req, res) => {
     const orderId = orderData.order_id;
     const isSuccess = eventType === 'PAYMENT_SUCCESS_WEBHOOK' || req.body?.data?.payment?.payment_status === 'SUCCESS';
 
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(orderId).trim());
+    const whereCond = isUuid
+      ? {
+          OR: [
+            { id: String(orderId).trim() },
+            { order_number: { equals: String(orderId).trim(), mode: 'insensitive' } },
+          ],
+        }
+      : { order_number: { equals: String(orderId).trim(), mode: 'insensitive' } };
+
     const targetOrder = await prisma.orders.findFirst({
-      where: {
-        OR: [
-          { id: String(orderId) },
-          { order_number: String(orderId) },
-        ],
-      },
+      where: whereCond,
     });
 
     if (targetOrder) {
