@@ -108,7 +108,51 @@ async function seedMenu() {
     { name: 'Kalaki', price: 15, category: 'Egg Items', food_type: 'Non-Veg' },
   ];
 
-  const allFoodItems = [...nonVegItems, ...vegItems, ...eggItems];
+  // 4. SNACKS ITEMS
+  const snackItems = [
+    {
+      name: 'Tea',
+      price: 20,
+      category: 'Snacks',
+      food_type: 'Veg',
+      available_days: 'Every Day',
+      defaultImageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=1000&q=85',
+    },
+    {
+      name: 'Filter Coffee',
+      price: 20,
+      category: 'Snacks',
+      food_type: 'Veg',
+      available_days: 'Every Day',
+      defaultImageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=1000&q=85',
+    },
+    {
+      name: 'Ooluntha Vadai',
+      price: 20,
+      category: 'Snacks',
+      food_type: 'Veg',
+      available_days: 'Every Day',
+      defaultImageUrl: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=1000&q=85',
+    },
+    {
+      name: 'Sundal',
+      price: 20,
+      category: 'Snacks',
+      food_type: 'Veg',
+      available_days: 'Every Day',
+      defaultImageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=1000&q=85',
+    },
+    {
+      name: 'Green Gram',
+      price: 20,
+      category: 'Snacks',
+      food_type: 'Veg',
+      available_days: 'Every Day',
+      defaultImageUrl: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=1000&q=85',
+    },
+  ];
+
+  const allFoodItems = [...nonVegItems, ...vegItems, ...eggItems, ...snackItems];
   const foodItemMap = {}; // name -> DB record
 
   console.log('1. SEEDING INDIVIDUAL FOOD ITEMS & UPLOADING MATCHED IMAGES...\n');
@@ -120,6 +164,8 @@ async function seedMenu() {
     if (matchedFile) {
       report.imageMatches.push({ food: item.name, localFile: path.basename(matchedFile) });
       imageUrl = await uploadImageToCloudinary(matchedFile, item.name);
+    } else if (item.defaultImageUrl) {
+      imageUrl = item.defaultImageUrl;
     } else {
       report.missingImages.push(item.name);
       console.log(`[Image] NO MATCH for "${item.name}" -> setting image_url = null`);
