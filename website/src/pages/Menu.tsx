@@ -7,7 +7,7 @@ import { FoodCardSkeleton } from '../components/common/Skeleton';
 import { FoodDetailsModal } from '../components/common/FoodDetailsModal';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
-import { Search, SlidersHorizontal, Utensils } from 'lucide-react';
+import { Search, SlidersHorizontal, Utensils, Coffee } from 'lucide-react';
 
 export const Menu: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -21,33 +21,71 @@ export const Menu: React.FC = () => {
     queryFn: () => websiteApi.getTodayMenu(),
   });
 
+  // Helper to test if a food item is a snack
+  const isSnackItem = (food: FoodItem) => {
+    const cat = (food.category || '').toLowerCase().trim();
+    const type = (food.food_type || '').toLowerCase().trim();
+    const name = (food.name || '').toLowerCase().trim();
+
+    return (
+      cat === 'snacks' ||
+      cat.includes('snack') ||
+      type === 'snacks' ||
+      type.includes('snack') ||
+      name.includes('tea') ||
+      name.includes('coffee') ||
+      name.includes('vadai') ||
+      name.includes('vada') ||
+      name.includes('sundal') ||
+      name.includes('green gram') ||
+      name.includes('samosa') ||
+      name.includes('bajji') ||
+      name.includes('pakoda') ||
+      name.includes('cutlet') ||
+      name.includes('roll')
+    );
+  };
+
+  // Compute category counts for chips
+  const counts = useMemo(() => {
+    let vegCount = 0;
+    let nonVegCount = 0;
+    let snacksCount = 0;
+
+    foods.forEach((food) => {
+      const isSnack = isSnackItem(food);
+      const isVeg = food.food_type?.toLowerCase() === 'veg';
+
+      if (isSnack) {
+        snacksCount++;
+      } else if (isVeg) {
+        vegCount++;
+      } else {
+        nonVegCount++;
+      }
+    });
+
+    return {
+      all: foods.length,
+      veg: vegCount,
+      nonVeg: nonVegCount,
+      snacks: snacksCount,
+    };
+  }, [foods]);
+
   // Filter and sort items
   const filteredFoods = useMemo(() => {
     return foods
       .filter((food) => {
+        const isSnack = isSnackItem(food);
+        const isVeg = food.food_type?.toLowerCase() === 'veg';
+
         // Food Type / Category filter
         if (foodTypeFilter === 'Veg') {
-          if (food.food_type?.toLowerCase() !== 'veg') return false;
+          if (!isVeg || isSnack) return false;
         } else if (foodTypeFilter === 'Non-Veg') {
-          if (food.food_type?.toLowerCase() === 'veg') return false;
+          if (isVeg || isSnack) return false;
         } else if (foodTypeFilter === 'Snacks') {
-          const cat = (food.category || '').toLowerCase();
-          const type = (food.food_type || '').toLowerCase();
-          const name = (food.name || '').toLowerCase();
-          const isSnack =
-            cat === 'snacks' ||
-            cat.includes('snack') ||
-            type === 'snacks' ||
-            type.includes('snack') ||
-            name.includes('snack') ||
-            name.includes('samosa') ||
-            name.includes('bajji') ||
-            name.includes('pakoda') ||
-            name.includes('vada') ||
-            name.includes('roll') ||
-            name.includes('cutlet') ||
-            name.includes('fry') ||
-            name.includes('puff');
           if (!isSnack) return false;
         }
 
@@ -55,8 +93,9 @@ export const Menu: React.FC = () => {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
           const nameMatch = food.name.toLowerCase().includes(q);
-          const catMatch = food.category.toLowerCase().includes(q);
-          if (!nameMatch && !catMatch) return false;
+          const catMatch = (food.category || '').toLowerCase().includes(q);
+          const descMatch = (food.description || '').toLowerCase().includes(q);
+          if (!nameMatch && !catMatch && !descMatch) return false;
         }
 
         return true;
@@ -85,11 +124,11 @@ export const Menu: React.FC = () => {
             Today's Scheduled Menu
           </h1>
           <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Select from our fresh South Indian food items. Available for online order, delivery, takeaway, or parcel.
+            Select from our fresh South Indian food items, meals & snacks. Available for online order, delivery, takeaway, or parcel.
           </p>
         </div>
 
-        {/* Sticky Search & Swipeable Filter Controls Bar */}
+        {/* Sticky Search & Filter Controls Bar */}
         <div className="sticky top-20 z-30 bg-white/95 dark:bg-zinc-900/95 p-4 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-xl backdrop-blur-md space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Sticky Search Input */}
@@ -97,7 +136,7 @@ export const Menu: React.FC = () => {
               <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search food dishes (e.g. Dosa, Biryani)..."
+                placeholder="Search dishes or snacks (e.g. Tea, Coffee, Biryani, Vadai)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors min-h-[48px]"
@@ -120,24 +159,78 @@ export const Menu: React.FC = () => {
             </div>
           </div>
 
-          {/* Swipeable Horizontal Filter Chips */}
-          <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none pt-1">
-            {(['All', 'Veg', 'Non-Veg', 'Snacks'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setFoodTypeFilter(type)}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] flex items-center justify-center ${
-                  foodTypeFilter === type
-                    ? 'bg-amber-500 text-brand-maroon shadow-md'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                }`}
-              >
-                {type === 'Veg' && <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />}
-                {type === 'Non-Veg' && <span className="w-2 h-2 rounded-full bg-red-500 mr-1.5" />}
-                {type === 'Snacks' && <span className="mr-1.5">🍟</span>}
-                <span>{type}</span>
-              </button>
-            ))}
+          {/* Category Filter Chips: All | Veg | Non-Veg | Snacks */}
+          <div className="flex items-center space-x-2.5 overflow-x-auto pb-1 scrollbar-none pt-1">
+            {/* All Chip */}
+            <button
+              onClick={() => setFoodTypeFilter('All')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] flex items-center justify-center space-x-1.5 cursor-pointer ${
+                foodTypeFilter === 'All'
+                  ? 'bg-amber-500 text-brand-maroon shadow-md scale-105 font-extrabold'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+              }`}
+            >
+              <span>All Dishes</span>
+              {counts.all > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${foodTypeFilter === 'All' ? 'bg-brand-maroon/20 text-brand-maroon' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'}`}>
+                  {counts.all}
+                </span>
+              )}
+            </button>
+
+            {/* Veg Chip */}
+            <button
+              onClick={() => setFoodTypeFilter('Veg')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] flex items-center justify-center space-x-1.5 cursor-pointer ${
+                foodTypeFilter === 'Veg'
+                  ? 'bg-emerald-600 text-white shadow-md scale-105 font-extrabold'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${foodTypeFilter === 'Veg' ? 'bg-emerald-200' : 'bg-emerald-500'}`} />
+              <span>Veg</span>
+              {counts.veg > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${foodTypeFilter === 'Veg' ? 'bg-emerald-800 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'}`}>
+                  {counts.veg}
+                </span>
+              )}
+            </button>
+
+            {/* Non-Veg Chip */}
+            <button
+              onClick={() => setFoodTypeFilter('Non-Veg')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] flex items-center justify-center space-x-1.5 cursor-pointer ${
+                foodTypeFilter === 'Non-Veg'
+                  ? 'bg-red-600 text-white shadow-md scale-105 font-extrabold'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${foodTypeFilter === 'Non-Veg' ? 'bg-red-200' : 'bg-red-500'}`} />
+              <span>Non-Veg</span>
+              {counts.nonVeg > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${foodTypeFilter === 'Non-Veg' ? 'bg-red-800 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'}`}>
+                  {counts.nonVeg}
+                </span>
+              )}
+            </button>
+
+            {/* Snacks Chip */}
+            <button
+              onClick={() => setFoodTypeFilter('Snacks')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[44px] flex items-center justify-center space-x-1.5 cursor-pointer ${
+                foodTypeFilter === 'Snacks'
+                  ? 'bg-amber-600 text-white shadow-md scale-105 font-extrabold'
+                  : 'bg-amber-50 dark:bg-zinc-800 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-100'
+              }`}
+            >
+              <Coffee className="w-3.5 h-3.5 text-amber-500" />
+              <span>Snacks & Tea</span>
+              {counts.snacks > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${foodTypeFilter === 'Snacks' ? 'bg-amber-800 text-white' : 'bg-amber-200 dark:bg-zinc-700 text-amber-900 dark:text-amber-200'}`}>
+                  {counts.snacks}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -152,10 +245,10 @@ export const Menu: React.FC = () => {
           <ErrorState onRetry={refetch} />
         ) : filteredFoods.length === 0 ? (
           <EmptyState
-            title={foodTypeFilter === 'Snacks' ? 'No Snacks Available Today' : 'No Food Items Found'}
+            title={foodTypeFilter === 'Snacks' ? 'No Snacks Found' : 'No Food Items Found'}
             description={
               foodTypeFilter === 'Snacks'
-                ? 'No snack items are scheduled for today. Check back later or browse all items.'
+                ? 'No snack items match your search query.'
                 : 'No scheduled items match your selected filters. Try clearing your search query.'
             }
             actionLabel="Reset Filters"
