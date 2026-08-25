@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, Download, CreditCard, Loader2, Printer, ArrowRight, Utensils } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Download, CreditCard, Loader2, Printer, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { websiteApi } from '../services/api';
 import { Order } from '../types';
@@ -12,7 +12,7 @@ export const OrderSuccess: React.FC = () => {
   const { orderNumber: pathOrderNum } = useParams<{ orderNumber: string }>();
   const [searchParams] = useSearchParams();
 
-  // Load cached order from sessionStorage immediately
+  // Load cached order from sessionStorage immediately for instant render
   const [order, setOrder] = useState<Order | null>(() => {
     try {
       const cached = sessionStorage.getItem('mfc_last_order');
@@ -95,7 +95,6 @@ export const OrderSuccess: React.FC = () => {
     setIsPdfLoading(true);
 
     try {
-      // Create fallback order if full object not present
       const orderToPrint: Order = order ? order : {
         id: orderNumber || 'MFC-ORDER',
         order_number: orderNumber || 'MFC-ORDER',
@@ -111,7 +110,7 @@ export const OrderSuccess: React.FC = () => {
       };
 
       generateReceiptPdf(orderToPrint, isPaid);
-      toast.success('Bill receipt PDF downloaded successfully!');
+      toast.success('Bill receipt PDF saved & downloaded successfully!');
     } catch (err) {
       console.error('PDF generation error:', err);
       toast.error('Failed to generate PDF receipt. Please try again.');
@@ -128,7 +127,7 @@ export const OrderSuccess: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-brand-cream dark:bg-zinc-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
         {/* Celebration Header Card */}
         <div className="bg-white dark:bg-zinc-900 p-6 sm:p-8 rounded-3xl border border-amber-500/20 shadow-2xl text-center space-y-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto ring-8 ring-emerald-500/5">
@@ -136,19 +135,15 @@ export const OrderSuccess: React.FC = () => {
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-              Order Confirmed
-            </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold font-serif text-brand-maroon dark:text-white">
               Order Placed Successfully!
             </h1>
+            <p className="text-xs sm:text-sm text-zinc-500 max-w-md mx-auto">
+              Thank you for dining with Madurai Food Corner. Your order has been sent to our kitchen team.
+            </p>
           </div>
 
-          <p className="text-xs sm:text-sm text-zinc-500 max-w-md mx-auto">
-            Thank you for dining with Madurai Food Corner. Your order is confirmed and sent directly to our kitchen team.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
             <div className="px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-brand-maroon dark:text-amber-400 font-mono text-sm sm:text-base font-extrabold">
               Order #: {displayOrderNum}
             </div>
@@ -156,29 +151,29 @@ export const OrderSuccess: React.FC = () => {
             {isPaid ? (
               <span className="px-3.5 py-2 rounded-2xl text-xs font-extrabold bg-emerald-500 text-white flex items-center space-x-1.5 shadow-sm">
                 <CreditCard className="w-3.5 h-3.5" />
-                <span>PAID (Cashfree)</span>
+                <span>PAID</span>
               </span>
             ) : (
               <span className="px-3.5 py-2 rounded-2xl text-xs font-bold bg-amber-500 text-brand-maroon">
-                {order?.payment_status || 'Payment Pending'}
+                {order?.payment_status || 'Pending'}
               </span>
             )}
           </div>
 
-          {/* Prominent Quick Download Bill Button in Top Header */}
-          <div className="pt-2">
+          {/* Prominent Save / Download Bill Button in Top Header */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               type="button"
               onClick={handleDownloadBill}
               disabled={isPdfLoading}
-              className="inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-2xl bg-brand-maroon hover:bg-red-950 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-xl transition-all duration-200 active:scale-95 disabled:opacity-70"
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 dark:bg-amber-600 dark:hover:bg-amber-500 text-white text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 disabled:opacity-70 cursor-pointer"
             >
               {isPdfLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
               ) : (
                 <Download className="w-4 h-4 text-amber-400" />
               )}
-              <span>{isPdfLoading ? 'Generating Bill PDF...' : 'Download Bill (PDF)'}</span>
+              <span>{isPdfLoading ? 'Generating PDF...' : 'Download & Save Bill (PDF)'}</span>
             </button>
           </div>
         </div>
@@ -188,26 +183,15 @@ export const OrderSuccess: React.FC = () => {
           <div className="bg-white dark:bg-zinc-900 p-6 sm:p-8 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-xl space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4">
               <div>
-                <p className="text-xs text-zinc-400">Order Placed Date</p>
+                <p className="text-xs text-zinc-400">Order Date</p>
                 <p className="text-sm font-bold text-brand-maroon dark:text-amber-400">
                   {formatDate(order.created_at || order.required_date)}
                 </p>
               </div>
 
               <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadBill}
-                  disabled={isPdfLoading}
-                  className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-zinc-800 hover:bg-amber-100 text-brand-maroon dark:text-amber-400 border border-amber-500/20 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
-                  title="Download Bill Receipt PDF"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>PDF Bill</span>
-                </button>
-
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-brand-maroon">
-                  {order.status || 'Confirmed'}
+                  {order.status || 'Accepted'}
                 </span>
               </div>
             </div>
@@ -220,14 +204,14 @@ export const OrderSuccess: React.FC = () => {
                   {order.customers?.name || (order as any).customer_name || 'Valued Customer'}
                 </p>
                 <p className="text-zinc-500">
-                  {order.customers?.phone || (order as any).customer_phone || 'Contact provided'}
+                  {order.customers?.phone || (order as any).customer_phone || 'N/A'}
                 </p>
               </div>
               <div>
                 <p className="text-zinc-400 font-semibold mb-0.5">Order Type & Payment</p>
                 <p className="font-bold text-zinc-800 dark:text-zinc-200">{order.order_type || 'Parcel'}</p>
                 <p className="text-zinc-500">
-                  {order.payment_method || 'Online'} ({isPaid ? 'PAID' : 'Pending'})
+                  {order.payment_method || 'Online'} {isPaid ? '(Paid)' : ''}
                 </p>
               </div>
             </div>
@@ -242,15 +226,9 @@ export const OrderSuccess: React.FC = () => {
 
             {/* Items Summary Table */}
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4 space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center space-x-1.5">
-                  <Utensils className="w-3.5 h-3.5" />
-                  <span>Items Ordered:</span>
-                </p>
-                <span className="text-xs text-zinc-400">
-                  {order.order_items?.length || 0} item{(order.order_items?.length || 0) === 1 ? '' : 's'}
-                </span>
-              </div>
+              <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                ITEMS PURCHASED:
+              </p>
 
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {order.order_items && order.order_items.length > 0 ? (
@@ -260,28 +238,14 @@ export const OrderSuccess: React.FC = () => {
                       item.combos?.name ||
                       item.special_offers?.title ||
                       (item as any).name ||
-                      `Dish #${idx + 1}`;
+                      `Food Item ${idx + 1}`;
                     const lineTotal = item.line_total ?? (item.unit_price || 0) * (item.quantity || 1);
 
                     return (
                       <div key={idx} className="py-2.5 flex items-center justify-between text-xs gap-3">
-                        <div className="flex items-start space-x-2.5">
-                          <span className="w-5 h-5 rounded-md bg-amber-500/10 text-brand-maroon dark:text-amber-400 font-bold flex items-center justify-center text-[11px] shrink-0 mt-0.5">
-                            {item.quantity}x
-                          </span>
-                          <div>
-                            <p className="text-zinc-800 dark:text-zinc-200 font-medium">{itemName}</p>
-                            {item.combos?.combo_items && item.combos.combo_items.length > 0 && (
-                              <p className="text-[10px] text-zinc-400 mt-0.5">
-                                Included:{' '}
-                                {item.combos.combo_items.map((ci) => ci.food_items?.name).filter(Boolean).join(', ')}
-                              </p>
-                            )}
-                            <p className="text-[10px] text-zinc-400">
-                              Rate: {formatCurrency(item.unit_price || 0)} each
-                            </p>
-                          </div>
-                        </div>
+                        <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+                          {item.quantity}x {itemName}
+                        </span>
                         <span className="font-bold text-brand-maroon dark:text-amber-400 shrink-0">
                           {formatCurrency(lineTotal)}
                         </span>
@@ -289,58 +253,81 @@ export const OrderSuccess: React.FC = () => {
                     );
                   })
                 ) : (
-                  <p className="text-xs text-zinc-500 py-2">Order items recorded in ERP</p>
+                  <p className="text-xs text-zinc-500 py-2">Order items saved in system</p>
                 )}
               </div>
             </div>
 
             {/* Calculations Breakdown */}
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 space-y-2 text-xs">
-              <div className="flex justify-between text-zinc-500">
-                <span>Items Subtotal</span>
-                <span>{formatCurrency(order.subtotal || order.total_amount)}</span>
-              </div>
-
               {Number(order.discount_amount || 0) > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span>
-                    Discount {Number(order.discount_percentage || 0) > 0 ? `(${order.discount_percentage}%)` : ''}
-                  </span>
-                  <span>- {formatCurrency(order.discount_amount || 0)}</span>
-                </div>
+                <>
+                  <div className="flex justify-between text-zinc-500">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(order.subtotal || order.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span>
+                      Discount {Number(order.discount_percentage || 0) > 0 ? `(${order.discount_percentage}%)` : ''}
+                    </span>
+                    <span>- {formatCurrency(order.discount_amount || 0)}</span>
+                  </div>
+                </>
               )}
 
               {/* Grand Total */}
-              <div className="flex justify-between items-center text-base sm:text-lg font-extrabold text-brand-maroon dark:text-amber-400 pt-3 border-t border-zinc-200 dark:border-zinc-700">
-                <span>Grand Total Paid / Due</span>
+              <div className="flex justify-between items-center text-lg font-extrabold text-brand-maroon dark:text-brand-gold pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                <span>Total Paid / Due</span>
                 <span>{formatCurrency(order.total_amount)}</span>
               </div>
+            </div>
+
+            {/* Quick Bill Download Banner inside Card */}
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center space-x-3 text-left">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-brand-maroon dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-brand-maroon dark:text-amber-400">Need an Official Bill Receipt?</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Save a copy of this order bill for your records.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadBill}
+                disabled={isPdfLoading}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-brand-maroon hover:bg-red-950 text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-md transition-all shrink-0 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isPdfLoading ? 'Saving...' : 'Save Bill (PDF)'}</span>
+              </button>
             </div>
           </div>
         )}
 
         {/* Action Buttons Footer */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-          {/* Primary Download Bill (PDF) Button */}
+          {/* Primary Save / Download Bill Button */}
           <button
             type="button"
             disabled={isPdfLoading}
             onClick={handleDownloadBill}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg transition-all active:scale-95"
+            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg transition-all active:scale-95 cursor-pointer"
           >
             {isPdfLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
             ) : (
               <Download className="w-4 h-4 text-amber-400" />
             )}
-            <span>{isPdfLoading ? 'Generating PDF...' : 'Download Bill (PDF)'}</span>
+            <span>{isPdfLoading ? 'Generating Bill PDF...' : 'Download & Save Bill (PDF)'}</span>
           </button>
 
           {/* Print Bill Button */}
           <button
             type="button"
             onClick={() => window.print()}
-            className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-sm transition-all"
+            className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-sm transition-all cursor-pointer"
           >
             <Printer className="w-4 h-4 text-zinc-500" />
             <span>Print Bill</span>
@@ -353,7 +340,6 @@ export const OrderSuccess: React.FC = () => {
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Order More Dishes</span>
-            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

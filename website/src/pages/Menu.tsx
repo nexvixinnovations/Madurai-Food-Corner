@@ -26,9 +26,30 @@ export const Menu: React.FC = () => {
     return foods
       .filter((food) => {
         // Food Type / Category filter
-        if (foodTypeFilter === 'Veg' && food.food_type?.toLowerCase() !== 'veg') return false;
-        if (foodTypeFilter === 'Non-Veg' && food.food_type?.toLowerCase() === 'veg') return false;
-        if (foodTypeFilter === 'Snacks' && food.category?.toLowerCase() !== 'snacks') return false;
+        if (foodTypeFilter === 'Veg') {
+          if (food.food_type?.toLowerCase() !== 'veg') return false;
+        } else if (foodTypeFilter === 'Non-Veg') {
+          if (food.food_type?.toLowerCase() === 'veg') return false;
+        } else if (foodTypeFilter === 'Snacks') {
+          const cat = (food.category || '').toLowerCase();
+          const type = (food.food_type || '').toLowerCase();
+          const name = (food.name || '').toLowerCase();
+          const isSnack =
+            cat === 'snacks' ||
+            cat.includes('snack') ||
+            type === 'snacks' ||
+            type.includes('snack') ||
+            name.includes('snack') ||
+            name.includes('samosa') ||
+            name.includes('bajji') ||
+            name.includes('pakoda') ||
+            name.includes('vada') ||
+            name.includes('roll') ||
+            name.includes('cutlet') ||
+            name.includes('fry') ||
+            name.includes('puff');
+          if (!isSnack) return false;
+        }
 
         // Search Query filter
         if (searchQuery.trim()) {

@@ -357,27 +357,19 @@ export const Checkout: React.FC = () => {
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Select Pickup / Schedule Date *
                   </label>
-                  {/* Green & Red Color Legend */}
-                  <div className="flex items-center space-x-3 text-[10px] font-bold">
-                    <span className="flex items-center space-x-1 text-emerald-600 dark:text-emerald-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-sm"></span>
-                      <span>🟢 OPEN</span>
-                    </span>
-                    <span className="flex items-center space-x-1 text-red-600 dark:text-red-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shadow-sm"></span>
-                      <span>🔴 CLOSED</span>
-                    </span>
-                  </div>
+                  <span className="text-[11px] text-zinc-400">
+                    Available upcoming dates
+                  </span>
                 </div>
 
                 {!dateWiseEnabled && (
-                  <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center space-x-2">
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-brand-maroon dark:text-amber-400 text-xs font-bold flex items-center space-x-2">
                     <span>🚫</span>
-                    <span>Online ordering is currently CLOSED overall by the restaurant management.</span>
+                    <span>Online ordering is currently paused by restaurant management.</span>
                   </div>
                 )}
 
-                {/* Green & Red Calendar Days Grid */}
+                {/* Unified Calendar Days Grid */}
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                   {availableCalendarDays.map((day) => {
                     const isSelected = requiredDate === day.iso;
@@ -388,9 +380,9 @@ export const Checkout: React.FC = () => {
                         onClick={() => {
                           if (day.isClosed) {
                             if (day.isSameDayClosed) {
-                              toast.error(`Same-day ordering for today closed at ${formattedCutoffTime}. Please pick an OPEN (GREEN) date.`);
+                              toast.error(`Same-day ordering for today closed at ${formattedCutoffTime}. Please choose another date.`);
                             } else {
-                              toast.error(`Ordering is CLOSED for ${day.dayName}, ${day.monthName} ${day.dayNum}. Please pick an OPEN (GREEN) date.`);
+                              toast.error(`Ordering is not available for ${day.dayName}, ${day.monthName} ${day.dayNum}.`);
                             }
                           } else {
                             setRequiredDate(day.iso);
@@ -398,27 +390,25 @@ export const Checkout: React.FC = () => {
                         }}
                         className={`p-2.5 rounded-2xl text-center border transition-all flex flex-col items-center justify-center relative ${
                           day.isClosed
-                            ? 'bg-red-500/10 dark:bg-red-950/30 border-red-500/40 text-red-600 dark:text-red-400 opacity-75 cursor-not-allowed'
+                            ? 'bg-zinc-100/60 dark:bg-zinc-900/60 border-zinc-200/60 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
                             : isSelected
-                            ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-emerald-600 shadow-lg scale-105 font-extrabold ring-2 ring-emerald-400'
-                            : 'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                            ? 'bg-amber-500 text-brand-maroon border-amber-600 shadow-lg scale-105 font-extrabold ring-2 ring-amber-400'
+                            : 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 hover:border-amber-400 hover:bg-amber-50/30'
                         }`}
                       >
-                        <span className="text-[10px] font-bold uppercase opacity-80">{day.dayName}</span>
+                        <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
                         <span className="text-base font-extrabold my-0.5">{day.dayNum}</span>
                         <span className="text-[9px] font-bold tracking-tight">{day.monthName}</span>
 
-                        <span
-                          className={`mt-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                            day.isClosed
-                              ? 'bg-red-600 text-white'
-                              : isSelected
-                              ? 'bg-white text-emerald-800'
-                              : 'bg-emerald-600 text-white'
-                          }`}
-                        >
-                          {day.isClosed ? 'CLOSED' : 'OPEN'}
-                        </span>
+                        {day.isClosed ? (
+                          <span className="mt-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500">
+                            Closed
+                          </span>
+                        ) : isSelected ? (
+                          <span className="mt-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-brand-maroon text-amber-300">
+                            Selected
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -434,15 +424,15 @@ export const Checkout: React.FC = () => {
                     type="date"
                     value={requiredDate}
                     onChange={(e) => setRequiredDate(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border text-xs font-semibold ${
+                    className={`w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border text-xs font-semibold focus:outline-none focus:border-amber-500 ${
                       isSelectedDateDisabled
-                        ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950/30'
-                        : 'border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                        ? 'border-red-400 text-red-600 bg-red-50/50 dark:bg-red-950/20'
+                        : 'border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200'
                     }`}
                   />
                   {isSelectedDateDisabled && (
                     <p className="mt-1.5 text-[11px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
-                      <span>🚫</span> Store ordering is closed for {requiredDate}. Please select an OPEN (GREEN) date.
+                      <span>🚫</span> Store ordering is closed for {requiredDate}. Please select an open date.
                     </p>
                   )}
                 </div>
