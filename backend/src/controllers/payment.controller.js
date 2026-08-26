@@ -119,9 +119,8 @@ const verifyCashfreePayment = asyncHandler(async (req, res) => {
   }
 
   const cleanId = String(targetId).trim();
-  const cfOrder = await cashfreeService.getOrderDetails(cleanId);
-  const cfPayments = await cashfreeService.getOrderPayments(cleanId);
 
+  // 1. Locate order in database first
   const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(cleanId);
   const whereCond = isUuid
     ? {
@@ -135,6 +134,29 @@ const verifyCashfreePayment = asyncHandler(async (req, res) => {
   const targetOrder = await prisma.orders.findFirst({
     where: whereCond,
   });
+
+  const cashfreeOrderId = targetOrder?.order_number || cleanId;
+
+  // 2. Fetch authoritative status from Cashfree PG API
+  let cfOrder = null;
+  let cfPayments = [];
+
+  try {
+    cfOrder = await cashfreeService.getOrderDetails(cashfreeOrderId);
+  } catch (err) {
+    // If not found by order_number and cleanId is different, try cleanId
+    if (cleanId !== cashfreeOrderId) {
+      try {
+        cfOrder = await cashfreeService.getOrderDetails(cleanId);
+      } catch (_) {}
+    }
+  }
+
+  try {
+    cfPayments = await cashfreeService.getOrderPayments(cashfreeOrderId);
+  } catch (_) {
+    cfPayments = [];
+  }
 
   const hasSuccessfulPayment =
     cfOrder?.order_status === 'PAID' ||

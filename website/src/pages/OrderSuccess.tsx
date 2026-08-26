@@ -35,8 +35,8 @@ export const OrderSuccess: React.FC = () => {
 
   const hasAutoDownloadedRef = useRef<boolean>(false);
 
-  // Authoritative server-side payment verification
-  const verifyPaymentStatus = useCallback(async (targetNum: string) => {
+  // Authoritative server-side payment verification with retry polling
+  const verifyPaymentStatus = useCallback(async (targetNum: string, retryCount = 0) => {
     if (!targetNum) return;
     setIsVerifying(true);
 
@@ -46,6 +46,8 @@ export const OrderSuccess: React.FC = () => {
 
       if (verifyRes && verifyRes.paid === true && verifyRes.status === 'PAID') {
         setPaymentOutcome('PAID');
+        setIsVerifying(false);
+        setIsLoading(false);
       } else if (
         verifyRes &&
         (verifyRes.status === 'FAILED' ||
@@ -54,8 +56,20 @@ export const OrderSuccess: React.FC = () => {
           verifyRes.status === 'USER_DROPPED')
       ) {
         setPaymentOutcome('FAILED');
+        setIsVerifying(false);
+        setIsLoading(false);
       } else {
         setPaymentOutcome('PENDING');
+
+        // Auto-poll up to 3 times if payment is still pending confirmation
+        if (retryCount < 3) {
+          setTimeout(() => {
+            verifyPaymentStatus(targetNum, retryCount + 1);
+          }, 3000);
+        } else {
+          setIsVerifying(false);
+          setIsLoading(false);
+        }
       }
 
       // 2. Fetch fresh updated order record from database
@@ -66,7 +80,6 @@ export const OrderSuccess: React.FC = () => {
           sessionStorage.setItem('mfc_last_order', JSON.stringify(refreshedOrder));
         } catch (_) {}
 
-        // Fallback check against DB record if Cashfree verification didn't return outcome
         const dbPayStatus = refreshedOrder.payment_status?.toLowerCase();
         if (dbPayStatus === 'paid' || dbPayStatus === 'success') {
           setPaymentOutcome('PAID');
@@ -76,7 +89,6 @@ export const OrderSuccess: React.FC = () => {
       }
     } catch (err) {
       console.warn('Payment verification notice:', err);
-      // If verification API errors out, check local/DB order payment status
       if (order?.payment_status?.toLowerCase() === 'paid') {
         setPaymentOutcome('PAID');
       } else if (order?.payment_status?.toLowerCase() === 'failed') {
@@ -84,7 +96,6 @@ export const OrderSuccess: React.FC = () => {
       } else {
         setPaymentOutcome('PENDING');
       }
-    } finally {
       setIsVerifying(false);
       setIsLoading(false);
     }

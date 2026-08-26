@@ -5,7 +5,6 @@ import { formatCurrency } from '../utils/formatters';
 import { CreditCard, Clock, User, Phone, Mail, CheckCircle2, ShieldCheck, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import confetti from 'canvas-confetti';
 import { RestaurantSettings } from '../types';
 import { load } from '@cashfreepayments/cashfree-js';
 
@@ -217,13 +216,6 @@ export const Checkout: React.FC = () => {
       // 3. Initialize Cashfree JS SDK & launch checkout with full-page redirect
       const isProduction = import.meta.env.VITE_CASHFREE_MODE === 'production';
       const cashfree = await load({ mode: isProduction ? 'production' : 'sandbox' });
-
-      // Trigger Confetti Celebration before navigating away
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
 
       // Clear cart BEFORE cashfree.checkout() triggers the full-page redirect.
       // Code after checkout() with redirectTarget:'_self' may never execute.
