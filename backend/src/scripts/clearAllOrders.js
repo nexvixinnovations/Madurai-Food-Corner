@@ -12,7 +12,10 @@ async function clearAllOrders() {
     const deletedOrders = await prisma.orders.deleteMany({});
     console.log(`Deleted ${deletedOrders.count} order records.`);
 
-    console.log('SUCCESS: All orders, items, and payments have been completely cleared!');
+    const deletedCustomers = await prisma.customers.deleteMany({});
+    console.log(`Deleted ${deletedCustomers.count} customer records.`);
+
+    console.log('SUCCESS: All customer order data, items, payments, and customer records have been completely cleared!');
   } catch (error) {
     console.error('ERROR clearing orders:', error.message);
   } finally {
