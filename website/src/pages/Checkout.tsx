@@ -34,14 +34,14 @@ export const Checkout: React.FC = () => {
           setDateWiseEnabled(s.date_wise_ordering_enabled);
         }
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Fetch single source of truth closed dates from database ordering-calendar API
     websiteApi.getOrderingCalendar().then((calData) => {
       if (calData && Array.isArray(calData.closed_dates)) {
         setDisabledDates(calData.closed_dates);
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Compute Order Value Discount parameters using discountPreview & settings
@@ -181,7 +181,7 @@ export const Checkout: React.FC = () => {
       // Cache order data in sessionStorage so OrderSuccess page has instant fallback
       try {
         sessionStorage.setItem('mfc_last_order', JSON.stringify(newOrder));
-      } catch (_) {}
+      } catch (_) { }
 
       // 2. Obtain Cashfree Payment Session from Backend
       toast.loading('Initiating Cashfree Payment Gateway...', { id: 'payment-loading' });
@@ -340,11 +340,10 @@ export const Checkout: React.FC = () => {
                       type="button"
                       key={type}
                       onClick={() => setOrderType(type)}
-                      className={`py-3 rounded-2xl text-xs font-bold transition-all border ${
-                        orderType === type
+                      className={`py-3 rounded-2xl text-xs font-bold transition-all border ${orderType === type
                           ? 'bg-amber-500 text-brand-maroon border-amber-600 shadow-md scale-[1.02]'
                           : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700'
-                      }`}
+                        }`}
                     >
                       {type}
                     </button>
@@ -363,7 +362,7 @@ export const Checkout: React.FC = () => {
                       <span>OPEN</span>
                     </span>
                     <span className="flex items-center space-x-1.5 text-red-600 dark:text-red-400">
-                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-sm"></span>
+
                       <span>CLOSED</span>
                     </span>
                   </div>
@@ -395,13 +394,12 @@ export const Checkout: React.FC = () => {
                             setRequiredDate(day.iso);
                           }
                         }}
-                        className={`p-2.5 rounded-2xl text-center border transition-all flex flex-col items-center justify-center relative ${
-                          day.isClosed
+                        className={`p-2.5 rounded-2xl text-center border transition-all flex flex-col items-center justify-center relative ${day.isClosed
                             ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/70 dark:border-red-900/40 text-red-400 dark:text-red-500 opacity-60 cursor-not-allowed'
                             : isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-lg scale-105 font-extrabold ring-2 ring-emerald-400'
-                            : 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-100 hover:border-emerald-400 hover:bg-emerald-100/50'
-                        }`}
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-lg scale-105 font-extrabold ring-2 ring-emerald-400'
+                              : 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-100 hover:border-emerald-400 hover:bg-emerald-100/50'
+                          }`}
                       >
                         <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
                         <span className="text-base font-extrabold my-0.5">{day.dayNum}</span>
@@ -435,11 +433,10 @@ export const Checkout: React.FC = () => {
                     type="date"
                     value={requiredDate}
                     onChange={(e) => setRequiredDate(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none ${
-                      isSelectedDateDisabled
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none ${isSelectedDateDisabled
                         ? 'border-red-400 text-red-600 bg-red-50/50 dark:bg-red-950/20 focus:border-red-500'
                         : 'border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/20 focus:border-emerald-500'
-                    }`}
+                      }`}
                   />
                   {isSelectedDateDisabled && (
                     <p className="mt-1.5 text-[11px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
