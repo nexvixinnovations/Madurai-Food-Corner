@@ -191,9 +191,8 @@ export const Checkout: React.FC = () => {
 
       let sessionData;
       try {
-        // Only use {order_id} as a Cashfree template variable — {order_status} is NOT supported
-        // Cashfree substitutes {order_id} with the actual order_id before redirecting
-        const returnUrl = `${window.location.origin}/order-success/${safeOrderNum}?order_id={order_id}&status=paid`;
+        // Only use {order_id} as a Cashfree template variable — Cashfree substitutes it before redirecting
+        const returnUrl = `${window.location.origin}/order-success/${safeOrderNum}?order_id={order_id}`;
         sessionData = await websiteApi.createCashfreeSession({
           order_id: newOrder.id,
           order_number: newOrder.order_number,

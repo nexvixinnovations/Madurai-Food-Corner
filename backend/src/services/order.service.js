@@ -281,6 +281,20 @@ class OrderService {
         });
       }
 
+      // Determine initial payment status: MUST be 'Pending' by default for all unverified / online orders
+      const isExplicitCash = data.payment_method && ['cash', 'pos cash', 'counter cash'].includes(data.payment_method.trim().toLowerCase());
+      const initialPaymentStatus = data.payment_status
+        ? data.payment_status.trim()
+        : isExplicitCash
+        ? 'Paid'
+        : 'Pending';
+
+      const initialOrderStatus = data.status
+        ? data.status.trim()
+        : initialPaymentStatus.toLowerCase() === 'paid'
+        ? 'Accepted'
+        : 'Pending';
+
       // Create Order Header
       const newOrder = await tx.orders.create({
         data: {
@@ -291,8 +305,8 @@ class OrderService {
           required_time: requiredTime,
           order_type: data.order_type.trim(),
           payment_method: data.payment_method ? data.payment_method.trim() : 'Online',
-          payment_status: data.payment_status ? data.payment_status.trim() : 'Paid',
-          status: data.status ? data.status.trim() : 'Accepted',
+          payment_status: initialPaymentStatus,
+          status: initialOrderStatus,
           subtotal: subtotal,
           eligible_subtotal: eligible_subtotal,
           special_offer_subtotal: special_offer_subtotal,
@@ -315,7 +329,7 @@ class OrderService {
               create: {
                 payment_gateway: data.payment_method.trim(),
                 amount: total_amount,
-                status: data.payment_status ? data.payment_status.trim() : 'Paid',
+                status: initialPaymentStatus,
               },
             },
           } : {}),

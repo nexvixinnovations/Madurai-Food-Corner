@@ -107,47 +107,127 @@ const createCashfreeSession = asyncHandler(async (req, res) => {
 
 /**
  * Controller: Verify Cashfree Payment status directly
- * POST /api/payments/cashfree/verify
+/**
+ * Controller: Verify Cashfree Payment status directly from Cashfree PG API
+ * POST /api/payments/cashfree/verify or GET/POST /api/website/payments/verify/:orderNumber?
  */
 const verifyCashfreePayment = asyncHandler(async (req, res) => {
-  const { order_id } = req.body;
+  const targetId = req.body?.order_id || req.params?.orderNumber || req.params?.orderId || req.query?.order_id;
 
-  if (!order_id) {
-    throw new ApiError(400, 'order_id is required for Cashfree payment verification');
+  if (!targetId) {
+    throw new ApiError(400, 'order_id or orderNumber is required for Cashfree payment verification');
   }
 
-  const cfOrder = await cashfreeService.getOrderDetails(order_id);
+  const cleanId = String(targetId).trim();
+  const cfOrder = await cashfreeService.getOrderDetails(cleanId);
+  const cfPayments = await cashfreeService.getOrderPayments(cleanId);
 
-  if (cfOrder && cfOrder.order_status === 'PAID') {
-    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(order_id).trim());
-    const whereCond = isUuid
-      ? {
-          OR: [
-            { id: String(order_id).trim() },
-            { order_number: { equals: String(order_id).trim(), mode: 'insensitive' } },
-          ],
-        }
-      : { order_number: { equals: String(order_id).trim(), mode: 'insensitive' } };
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(cleanId);
+  const whereCond = isUuid
+    ? {
+        OR: [
+          { id: cleanId },
+          { order_number: { equals: cleanId, mode: 'insensitive' } },
+        ],
+      }
+    : { order_number: { equals: cleanId, mode: 'insensitive' } };
 
-    const targetOrder = await prisma.orders.findFirst({
-      where: whereCond,
-    });
+  const targetOrder = await prisma.orders.findFirst({
+    where: whereCond,
+  });
 
+  const hasSuccessfulPayment =
+    cfOrder?.order_status === 'PAID' ||
+    (Array.isArray(cfPayments) && cfPayments.some((p) => p.payment_status === 'SUCCESS'));
+
+  const hasFailedPayment =
+    cfOrder?.order_status === 'FAILED' ||
+    cfOrder?.order_status === 'CANCELLED' ||
+    cfOrder?.order_status === 'EXPIRED' ||
+    (Array.isArray(cfPayments) && cfPayments.length > 0 && cfPayments.every((p) => ['FAILED', 'USER_DROPPED', 'CANCELLED'].includes(p.payment_status)));
+
+  if (hasSuccessfulPayment) {
     if (targetOrder) {
       await paymentService.createPayment({
         order_id: targetOrder.id,
-        transaction_id: cfOrder.cf_order_id || `CF_${order_id}`,
+        transaction_id: cfOrder?.cf_order_id || (Array.isArray(cfPayments) && cfPayments[0]?.cf_payment_id) || `CF_${cleanId}`,
         payment_gateway: 'Cashfree',
-        payment_method: 'Online',
-        amount: cfOrder.order_amount,
+        payment_method: (Array.isArray(cfPayments) && cfPayments[0]?.payment_group) || 'Online',
+        amount: cfOrder?.order_amount || targetOrder.total_amount,
         status: 'Paid',
       });
     }
 
-    return res.status(200).json(new ApiResponse(200, { paid: true, status: 'PAID', cfOrder }, 'Payment verified successfully as PAID'));
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          verified: true,
+          paid: true,
+          status: 'PAID',
+          order_number: targetOrder?.order_number || cleanId,
+          cfOrder,
+          payments: cfPayments,
+        },
+        'Payment verified successfully as PAID'
+      )
+    );
   }
 
-  res.status(200).json(new ApiResponse(200, { paid: false, status: cfOrder?.order_status || 'PENDING', cfOrder }, 'Payment verification completed'));
+  if (hasFailedPayment) {
+    if (targetOrder) {
+      await prisma.orders.update({
+        where: { id: targetOrder.id },
+        data: {
+          payment_status: 'Failed',
+          status: targetOrder.status === 'Accepted' ? 'Pending' : targetOrder.status,
+        },
+      });
+
+      const latestPayment = await prisma.payments.findFirst({
+        where: { order_id: targetOrder.id },
+        orderBy: { id: 'desc' },
+      });
+
+      if (latestPayment) {
+        await prisma.payments.update({
+          where: { id: latestPayment.id },
+          data: { status: 'Failed' },
+        });
+      }
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          verified: true,
+          paid: false,
+          status: 'FAILED',
+          order_number: targetOrder?.order_number || cleanId,
+          cfOrder,
+          payments: cfPayments,
+        },
+        'Payment has failed or was cancelled.'
+      )
+    );
+  }
+
+  // If still ACTIVE / PENDING
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        verified: true,
+        paid: false,
+        status: cfOrder?.order_status || 'PENDING',
+        order_number: targetOrder?.order_number || cleanId,
+        cfOrder,
+        payments: cfPayments,
+      },
+      'Payment is currently pending verification.'
+    )
+  );
 });
 
 /**
@@ -155,44 +235,67 @@ const verifyCashfreePayment = asyncHandler(async (req, res) => {
  * POST /api/payments/webhook
  */
 const handleCashfreeWebhook = asyncHandler(async (req, res) => {
-  console.log('[CASHFREE WEBHOOK RECEIVED]', JSON.stringify(req.body));
+  const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
+  const timestamp = req.headers['x-webhook-timestamp'] || req.headers['x-timestamp'];
+  const rawBody = req.rawBody || JSON.stringify(req.body);
+
+  // Validate HMAC-SHA256 Signature
+  if (process.env.NODE_ENV === 'production' || signature) {
+    const isValid = cashfreeService.verifyWebhookSignature(signature, rawBody, timestamp);
+    if (!isValid) {
+      console.warn('[CASHFREE WEBHOOK SECURITY ALERT] Rejected webhook with invalid signature');
+      throw new ApiError(401, 'Unauthorized: Invalid Cashfree Webhook Signature');
+    }
+  }
+
+  console.log('[CASHFREE WEBHOOK VERIFIED]', JSON.stringify(req.body));
 
   const eventType = req.body?.type || req.body?.event;
   const orderData = req.body?.data?.order || req.body?.data;
   const paymentData = req.body?.data?.payment;
 
   if (orderData && orderData.order_id) {
-    const orderId = orderData.order_id;
-    const isSuccess = eventType === 'PAYMENT_SUCCESS_WEBHOOK' || req.body?.data?.payment?.payment_status === 'SUCCESS';
+    const orderId = String(orderData.order_id).trim();
+    const isSuccess =
+      eventType === 'PAYMENT_SUCCESS_WEBHOOK' ||
+      req.body?.data?.payment?.payment_status === 'SUCCESS';
 
-    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(orderId).trim());
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(orderId);
     const whereCond = isUuid
       ? {
           OR: [
-            { id: String(orderId).trim() },
-            { order_number: { equals: String(orderId).trim(), mode: 'insensitive' } },
+            { id: orderId },
+            { order_number: { equals: orderId, mode: 'insensitive' } },
           ],
         }
-      : { order_number: { equals: String(orderId).trim(), mode: 'insensitive' } };
+      : { order_number: { equals: orderId, mode: 'insensitive' } };
 
     const targetOrder = await prisma.orders.findFirst({
       where: whereCond,
     });
 
     if (targetOrder) {
-      await paymentService.createPayment({
-        order_id: targetOrder.id,
-        transaction_id: paymentData?.cf_payment_id || `CF_${orderId}`,
-        payment_gateway: 'Cashfree',
-        payment_method: paymentData?.payment_group || 'Online',
-        amount: orderData.order_amount || targetOrder.total_amount,
-        status: isSuccess ? 'Paid' : 'Failed',
-      });
-      console.log(`[CASHFREE WEBHOOK PROCESSED] Order #${orderId} marked as ${isSuccess ? 'Paid' : 'Failed'}`);
+      if (isSuccess) {
+        await paymentService.createPayment({
+          order_id: targetOrder.id,
+          transaction_id: paymentData?.cf_payment_id || `CF_${orderId}`,
+          payment_gateway: 'Cashfree',
+          payment_method: paymentData?.payment_group || 'Online',
+          amount: orderData.order_amount || targetOrder.total_amount,
+          status: 'Paid',
+        });
+        console.log(`[CASHFREE WEBHOOK PROCESSED] Order #${orderId} marked as Paid`);
+      } else {
+        await prisma.orders.update({
+          where: { id: targetOrder.id },
+          data: { payment_status: 'Failed' },
+        });
+        console.log(`[CASHFREE WEBHOOK PROCESSED] Order #${orderId} marked as Failed`);
+      }
     }
   }
 
-  res.status(200).json({ status: 'OK', message: 'Webhook received' });
+  res.status(200).json({ status: 'OK', message: 'Webhook processed successfully' });
 });
 
 module.exports = {

@@ -42,9 +42,42 @@ app.use(compression());
 // Rate Limiting
 app.use(standardRateLimiter);
 
-// Enable CORS
+// Enable Strict CORS with Explicit Allowlist
+const explicitCorsOrigins = [
+  'https://maduraifoodcorner.pages.dev',
+  'https://maduraifoodcorner.com',
+  'https://www.maduraifoodcorner.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+];
+
+if (envConfig.FRONTEND_URL && !explicitCorsOrigins.includes(envConfig.FRONTEND_URL)) {
+  explicitCorsOrigins.push(envConfig.FRONTEND_URL);
+}
+if (envConfig.CORS_ORIGIN && envConfig.CORS_ORIGIN !== '*') {
+  envConfig.CORS_ORIGIN.split(',').forEach((o) => {
+    const trimmed = o.trim();
+    if (trimmed && !explicitCorsOrigins.includes(trimmed)) {
+      explicitCorsOrigins.push(trimmed);
+    }
+  });
+}
+
 app.use(cors({
-  origin: envConfig.CORS_ORIGIN === '*' ? true : envConfig.CORS_ORIGIN,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, curl, server-to-server calls)
+    if (!origin) return callback(null, true);
+    const cleanOrigin = origin.replace(/\/$/, '');
+    if (explicitCorsOrigins.some((allowed) => cleanOrigin === allowed.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+    // In local non-production if wildcard is set
+    if (envConfig.NODE_ENV === 'development' && envConfig.CORS_ORIGIN === '*') {
+      return callback(null, true);
+    }
+    return callback(new ApiError(403, `CORS policy violation: Origin '${origin}' is not allowed.`));
+  },
   credentials: true,
 }));
 

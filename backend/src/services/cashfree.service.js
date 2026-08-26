@@ -158,13 +158,70 @@ class CashfreeService {
   }
 
   /**
-   * Verify Cashfree Webhook Signature
+   * Fetch payment attempts list for an order from Cashfree
+   */
+  async getOrderPayments(orderId) {
+    this.init();
+    try {
+      const cf = new Cashfree();
+      cf.XClientId = Cashfree.XClientId;
+      cf.XClientSecret = Cashfree.XClientSecret;
+      cf.XEnvironment = Cashfree.XEnvironment;
+      cf.XApiVersion = Cashfree.XApiVersion || '2023-08-01';
+
+      if (typeof cf.PGOrderFetchPayments === 'function') {
+        const response = await cf.PGOrderFetchPayments(String(orderId));
+        return response.data;
+      }
+
+      // Fallback direct HTTPS request
+      const axios = require('axios');
+      const isProduction = Cashfree.XEnvironment === 2;
+      const baseUrl = isProduction ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+      const res = await axios.get(`${baseUrl}/orders/${encodeURIComponent(orderId)}/payments`, {
+        headers: {
+          'x-client-id': Cashfree.XClientId,
+          'x-client-secret': Cashfree.XClientSecret,
+          'x-api-version': Cashfree.XApiVersion || '2023-08-01',
+        },
+      });
+      return res.data;
+    } catch (error) {
+      console.warn('[CASHFREE FETCH PAYMENTS NOTICE]', error?.response?.data || error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Verify Cashfree Webhook Signature using HMAC-SHA256
    */
   verifyWebhookSignature(signature, rawBody, timestamp) {
+    if (!signature || !rawBody) {
+      return false;
+    }
+    this.init();
     try {
-      this.init();
-      const cf = new Cashfree();
-      return cf.PGVerifyWebhookSignature(signature, rawBody, timestamp);
+      // 1. Try Cashfree SDK verification if available
+      try {
+        const cf = new Cashfree();
+        if (typeof cf.PGVerifyWebhookSignature === 'function') {
+          const verified = cf.PGVerifyWebhookSignature(signature, rawBody, timestamp);
+          if (verified) return true;
+        }
+      } catch (_) {}
+
+      // 2. Direct HMAC-SHA256 validation (standard Cashfree algorithm)
+      const crypto = require('crypto');
+      const secret = Cashfree.XClientSecret;
+      if (!secret) return false;
+
+      const payloadToSign = timestamp ? `${timestamp}${rawBody}` : rawBody;
+      const computedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(payloadToSign)
+        .digest('base64');
+
+      return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computedSignature));
     } catch (error) {
       console.error('[CASHFREE WEBHOOK VERIFY ERROR]', error.message);
       return false;

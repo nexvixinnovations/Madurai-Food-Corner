@@ -234,6 +234,58 @@ class PaymentService {
       });
     });
   }
+
+  /**
+   * Safety Reconciliation: Identify orders sitting in 'Pending' payment status for > 15 minutes
+   * Checks Cashfree API and marks them appropriately (or logs alerts).
+   */
+  async reconcileStuckPendingPayments(maxAgeMinutes = 15) {
+    const cutoffTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+    const stuckOrders = await prisma.orders.findMany({
+      where: {
+        payment_status: { in: ['Pending', 'pending'] },
+        payment_method: { in: ['Online', 'Cashfree', 'online'] },
+        created_at: { lt: cutoffTime },
+      },
+      include: { payments: true },
+      take: 20,
+    });
+
+    if (stuckOrders.length === 0) return { reconciled: 0, totalStuck: 0 };
+
+    const cashfreeService = require('./cashfree.service');
+    let reconciledCount = 0;
+
+    for (const ord of stuckOrders) {
+      try {
+        const cfOrder = await cashfreeService.getOrderDetails(ord.order_number).catch(() => null);
+        if (cfOrder && cfOrder.order_status === 'PAID') {
+          await this.createPayment({
+            order_id: ord.id,
+            transaction_id: cfOrder.cf_order_id || `CF_RECON_${ord.order_number}`,
+            payment_gateway: 'Cashfree',
+            amount: cfOrder.order_amount || ord.total_amount,
+            status: 'Paid',
+          });
+          reconciledCount++;
+          console.log(`[PAYMENT RECONCILIATION] Resolved stuck order #${ord.order_number} to PAID`);
+        } else if (cfOrder && ['EXPIRED', 'TERMINATED', 'CANCELLED', 'FAILED'].includes(cfOrder.order_status)) {
+          await prisma.orders.update({
+            where: { id: ord.id },
+            data: { payment_status: 'Failed' },
+          });
+          reconciledCount++;
+          console.log(`[PAYMENT RECONCILIATION] Marked stuck order #${ord.order_number} as FAILED (${cfOrder.order_status})`);
+        } else {
+          console.warn(`[PAYMENT RECONCILIATION ALERT] Order #${ord.order_number} pending for > ${maxAgeMinutes}m. Cashfree status: ${cfOrder?.order_status || 'UNKNOWN'}`);
+        }
+      } catch (err) {
+        console.error(`[PAYMENT RECONCILIATION ERROR] Order #${ord.order_number}:`, err.message);
+      }
+    }
+
+    return { reconciled: reconciledCount, totalStuck: stuckOrders.length };
+  }
 }
 
 module.exports = new PaymentService();

@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
+const { sensitiveRateLimiter } = require('../middleware/security.middleware');
 
 /**
  * Routes for /api/payments
  */
 
-// POST create Cashfree payment session
-router.post('/cashfree/session', paymentController.createCashfreeSession);
+// POST create Cashfree payment session (Protected by sensitive rate limiter)
+router.post('/cashfree/session', sensitiveRateLimiter, paymentController.createCashfreeSession);
 
 // POST verify Cashfree payment status
 router.post('/cashfree/verify', paymentController.verifyCashfreePayment);
