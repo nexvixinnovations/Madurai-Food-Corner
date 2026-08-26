@@ -358,11 +358,11 @@ export const Checkout: React.FC = () => {
                   </label>
                   <div className="flex items-center space-x-3 text-[11px] font-bold">
                     <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shadow-sm"></span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
                       <span>OPEN</span>
                     </span>
                     <span className="flex items-center space-x-1.5 text-red-600 dark:text-red-400">
-
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
                       <span>CLOSED</span>
                     </span>
                   </div>
