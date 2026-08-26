@@ -116,7 +116,7 @@ async function seedMenu() {
       category: 'Snacks',
       food_type: 'Veg',
       available_days: 'Every Day',
-      defaultImageUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=1000&q=85',
+      defaultImageUrl: 'https://res.cloudinary.com/relqwvpd/image/upload/v1787674806/best_indian_chai_milk_tea_recipe_xb5fhl.jpg',
     },
     {
       name: 'Filter Coffee',

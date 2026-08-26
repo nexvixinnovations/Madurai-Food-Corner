@@ -15,7 +15,12 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
 
   const isOffer = food.offer_enabled && food.offer_price && Number(food.offer_price) > 0;
   const activePrice = isOffer ? Number(food.offer_price) : Number(food.price);
-  const isVeg = food.food_type?.toLowerCase() === 'veg';
+  const isSnack =
+    food.food_type?.toLowerCase() === 'snacks' ||
+    food.food_type?.toLowerCase().includes('snack') ||
+    food.category?.toLowerCase() === 'snacks' ||
+    food.category?.toLowerCase().includes('snack');
+  const isVeg = !isSnack && food.food_type?.toLowerCase() === 'veg';
   const hasImage = food.image_url && food.image_url.trim() !== '';
 
   // Control 1: Foods List ON/OFF toggle (daily / store availability)
@@ -91,11 +96,19 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
           <div className="absolute top-3 left-3 flex items-center space-x-1.5 z-20">
             <span
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 ${
-                isVeg ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                isSnack
+                  ? 'bg-amber-600 text-white'
+                  : isVeg
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-red-600 text-white'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-200' : 'bg-red-200'}`} />
-              <span>{food.food_type || 'Veg'}</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isSnack ? 'bg-amber-200' : isVeg ? 'bg-emerald-200' : 'bg-red-200'
+                }`}
+              />
+              <span>{isSnack ? 'Snack' : food.food_type || 'Veg'}</span>
             </span>
 
             {isOffer && isFullyAvailable && (
@@ -120,11 +133,19 @@ export const FoodCard: React.FC<FoodCardProps> = ({ food, onOpenDetails }) => {
           <div className="flex items-center space-x-1.5">
             <span
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 ${
-                isVeg ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-red-600/10 text-red-600 dark:text-red-400 border border-red-500/20'
+                isSnack
+                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                  : isVeg
+                  ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                  : 'bg-red-600/10 text-red-600 dark:text-red-400 border border-red-500/20'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              <span>{food.food_type || 'Veg'}</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isSnack ? 'bg-amber-500' : isVeg ? 'bg-emerald-500' : 'bg-red-500'
+                }`}
+              />
+              <span>{isSnack ? 'Snack' : food.food_type || 'Veg'}</span>
             </span>
 
             {isOffer && isFullyAvailable && (

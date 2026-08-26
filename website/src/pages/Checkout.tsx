@@ -357,9 +357,16 @@ export const Checkout: React.FC = () => {
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Select Pickup / Schedule Date *
                   </label>
-                  <span className="text-[11px] text-zinc-400">
-                    Available upcoming dates
-                  </span>
+                  <div className="flex items-center space-x-3 text-[11px] font-bold">
+                    <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shadow-sm"></span>
+                      <span>OPEN</span>
+                    </span>
+                    <span className="flex items-center space-x-1.5 text-red-600 dark:text-red-400">
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-sm"></span>
+                      <span>CLOSED</span>
+                    </span>
+                  </div>
                 </div>
 
                 {!dateWiseEnabled && (
@@ -390,10 +397,10 @@ export const Checkout: React.FC = () => {
                         }}
                         className={`p-2.5 rounded-2xl text-center border transition-all flex flex-col items-center justify-center relative ${
                           day.isClosed
-                            ? 'bg-zinc-100/60 dark:bg-zinc-900/60 border-zinc-200/60 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'
+                            ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/70 dark:border-red-900/40 text-red-400 dark:text-red-500 opacity-60 cursor-not-allowed'
                             : isSelected
-                            ? 'bg-amber-500 text-brand-maroon border-amber-600 shadow-lg scale-105 font-extrabold ring-2 ring-amber-400'
-                            : 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 hover:border-amber-400 hover:bg-amber-50/30'
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-lg scale-105 font-extrabold ring-2 ring-emerald-400'
+                            : 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-100 hover:border-emerald-400 hover:bg-emerald-100/50'
                         }`}
                       >
                         <span className="text-[10px] font-bold uppercase opacity-75">{day.dayName}</span>
@@ -401,14 +408,18 @@ export const Checkout: React.FC = () => {
                         <span className="text-[9px] font-bold tracking-tight">{day.monthName}</span>
 
                         {day.isClosed ? (
-                          <span className="mt-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500">
-                            Closed
+                          <span className="mt-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400">
+                            CLOSED
                           </span>
                         ) : isSelected ? (
-                          <span className="mt-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-brand-maroon text-amber-300">
-                            Selected
+                          <span className="mt-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white text-emerald-800 shadow-sm">
+                            OPEN
                           </span>
-                        ) : null}
+                        ) : (
+                          <span className="mt-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
+                            OPEN
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -424,10 +435,10 @@ export const Checkout: React.FC = () => {
                     type="date"
                     value={requiredDate}
                     onChange={(e) => setRequiredDate(e.target.value)}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border text-xs font-semibold focus:outline-none focus:border-amber-500 ${
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none ${
                       isSelectedDateDisabled
-                        ? 'border-red-400 text-red-600 bg-red-50/50 dark:bg-red-950/20'
-                        : 'border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200'
+                        ? 'border-red-400 text-red-600 bg-red-50/50 dark:bg-red-950/20 focus:border-red-500'
+                        : 'border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/20 focus:border-emerald-500'
                     }`}
                   />
                   {isSelectedDateDisabled && (

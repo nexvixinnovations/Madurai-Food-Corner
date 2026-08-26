@@ -85,14 +85,17 @@ export const OrderSuccess: React.FC = () => {
     order?.payment_status?.toLowerCase() === 'paid' ||
     order?.payment_status?.toLowerCase() === 'success' ||
     paymentStatusParam === 'SUCCESS' ||
-    paymentStatusParam === 'PAID' ||
     paymentStatusParam === 'paid' ||
     paymentStatusParam === 'success';
 
+  const hasAutoDownloadedRef = React.useRef<boolean>(false);
+
   // Handler to generate and download receipt PDF
-  const handleDownloadBill = useCallback(async () => {
+  const handleDownloadBill = useCallback(async (trigger?: boolean | React.MouseEvent) => {
     if (isPdfLoading) return;
     setIsPdfLoading(true);
+
+    const isAuto = typeof trigger === 'boolean' ? trigger : false;
 
     try {
       const orderToPrint: Order = order ? order : {
@@ -110,14 +113,45 @@ export const OrderSuccess: React.FC = () => {
       };
 
       generateReceiptPdf(orderToPrint, isPaid);
-      toast.success('Bill receipt PDF saved & downloaded successfully!');
+      if (isAuto) {
+        toast.success('Your order PDF bill has been automatically downloaded!', { id: 'auto-pdf-toast' });
+      } else {
+        toast.success('Bill receipt PDF saved & downloaded successfully!');
+      }
     } catch (err) {
       console.error('PDF generation error:', err);
-      toast.error('Failed to generate PDF receipt. Please try again.');
+      if (!isAuto) {
+        toast.error('Failed to generate PDF receipt. Please try again.');
+      }
     } finally {
       setIsPdfLoading(false);
     }
   }, [order, orderNumber, isPaid, isPdfLoading]);
+
+  // Automatic download of PDF receipt when order details are available
+  useEffect(() => {
+    if (!order || hasAutoDownloadedRef.current) return;
+
+    const safeNum = order.order_number || order.id || orderNumber;
+    if (!safeNum) return;
+
+    const sessionKey = `mfc_autodownloaded_${safeNum}`;
+    if (sessionStorage.getItem(sessionKey)) {
+      hasAutoDownloadedRef.current = true;
+      return;
+    }
+
+    // Trigger auto-download with a short delay for smooth page appearance
+    const timer = setTimeout(() => {
+      hasAutoDownloadedRef.current = true;
+      try {
+        sessionStorage.setItem(sessionKey, 'true');
+      } catch (_) {}
+      handleDownloadBill(true);
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [order, orderNumber, handleDownloadBill]);
 
   if (isLoading && !order) {
     return <Loader fullScreen message="Confirming your order details with kitchen..." />;
