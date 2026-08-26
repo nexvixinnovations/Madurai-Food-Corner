@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, Download, CreditCard, Loader2, Printer, FileText } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Download, CreditCard, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { websiteApi } from '../services/api';
 import { Order } from '../types';
@@ -48,7 +48,7 @@ export const OrderSuccess: React.FC = () => {
           setOrder(data);
           try {
             sessionStorage.setItem('mfc_last_order', JSON.stringify(data));
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // If Cashfree redirected back with payment indicator, verify payment with server
@@ -61,7 +61,7 @@ export const OrderSuccess: React.FC = () => {
                 setOrder(refreshedOrder);
                 try {
                   sessionStorage.setItem('mfc_last_order', JSON.stringify(refreshedOrder));
-                } catch (_) {}
+                } catch (_) { }
               }
             }
           } catch (err) {
@@ -90,7 +90,7 @@ export const OrderSuccess: React.FC = () => {
 
   const hasAutoDownloadedRef = React.useRef<boolean>(false);
 
-  // Handler to generate and download receipt PDF
+  // Single handler to generate and download receipt PDF
   const handleDownloadBill = useCallback(async (trigger?: boolean | React.MouseEvent) => {
     if (isPdfLoading) return;
     setIsPdfLoading(true);
@@ -114,21 +114,21 @@ export const OrderSuccess: React.FC = () => {
 
       generateReceiptPdf(orderToPrint, isPaid);
       if (isAuto) {
-        toast.success('Your order PDF bill has been automatically downloaded!', { id: 'auto-pdf-toast' });
+        toast.success('Your order bill PDF has been downloaded automatically!', { id: 'auto-pdf-toast' });
       } else {
-        toast.success('Bill receipt PDF saved & downloaded successfully!');
+        toast.success('Bill PDF downloaded successfully!');
       }
     } catch (err) {
       console.error('PDF generation error:', err);
       if (!isAuto) {
-        toast.error('Failed to generate PDF receipt. Please try again.');
+        toast.error('Failed to generate PDF. Please try again.');
       }
     } finally {
       setIsPdfLoading(false);
     }
   }, [order, orderNumber, isPaid, isPdfLoading]);
 
-  // Automatic download of PDF receipt when order details are available
+  // Auto-download PDF once when order details are ready
   useEffect(() => {
     if (!order || hasAutoDownloadedRef.current) return;
 
@@ -141,12 +141,10 @@ export const OrderSuccess: React.FC = () => {
       return;
     }
 
-    // Trigger auto-download with a short delay for smooth page appearance
+    // Short delay for smooth page render before triggering download
     const timer = setTimeout(() => {
       hasAutoDownloadedRef.current = true;
-      try {
-        sessionStorage.setItem(sessionKey, 'true');
-      } catch (_) {}
+      try { sessionStorage.setItem(sessionKey, 'true'); } catch (_) { }
       handleDownloadBill(true);
     }, 700);
 
@@ -162,7 +160,8 @@ export const OrderSuccess: React.FC = () => {
   return (
     <div className="min-h-screen bg-brand-cream dark:bg-zinc-950 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
-        {/* Celebration Header Card */}
+
+        {/* ─── Success Header Card ─── */}
         <div className="bg-white dark:bg-zinc-900 p-6 sm:p-8 rounded-3xl border border-amber-500/20 shadow-2xl text-center space-y-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto ring-8 ring-emerald-500/5">
             <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12" />
@@ -177,6 +176,7 @@ export const OrderSuccess: React.FC = () => {
             </p>
           </div>
 
+          {/* Order Number & Payment Status */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
             <div className="px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-brand-maroon dark:text-amber-400 font-mono text-sm sm:text-base font-extrabold">
               Order #: {displayOrderNum}
@@ -194,25 +194,28 @@ export const OrderSuccess: React.FC = () => {
             )}
           </div>
 
-          {/* Prominent Save / Download Bill Button in Top Header */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* Single Download Bill Button */}
+          <div className="pt-1">
             <button
               type="button"
               onClick={handleDownloadBill}
               disabled={isPdfLoading}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 dark:bg-amber-600 dark:hover:bg-amber-500 text-white text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 disabled:opacity-70 cursor-pointer"
+              className="inline-flex items-center justify-center space-x-2 px-6 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 dark:bg-amber-600 dark:hover:bg-amber-500 text-white text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 disabled:opacity-70 cursor-pointer"
             >
               {isPdfLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
               ) : (
                 <Download className="w-4 h-4 text-amber-400" />
               )}
-              <span>{isPdfLoading ? 'Generating PDF...' : 'Download & Save Bill (PDF)'}</span>
+              <span>{isPdfLoading ? 'Generating PDF...' : 'Download Bill (PDF)'}</span>
             </button>
+            <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+              Bill is auto-downloaded on page load
+            </p>
           </div>
         </div>
 
-        {/* Receipt Details Card */}
+        {/* ─── Receipt Details Card ─── */}
         {order && (
           <div className="bg-white dark:bg-zinc-900 p-6 sm:p-8 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 shadow-xl space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4">
@@ -258,7 +261,7 @@ export const OrderSuccess: React.FC = () => {
               </div>
             )}
 
-            {/* Items Summary Table */}
+            {/* Items Summary */}
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4 space-y-3">
               <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                 ITEMS PURCHASED:
@@ -315,62 +318,14 @@ export const OrderSuccess: React.FC = () => {
                 <span>{formatCurrency(order.total_amount)}</span>
               </div>
             </div>
-
-            {/* Quick Bill Download Banner inside Card */}
-            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center space-x-3 text-left">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-brand-maroon dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-brand-maroon dark:text-amber-400">Need an Official Bill Receipt?</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Save a copy of this order bill for your records.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleDownloadBill}
-                disabled={isPdfLoading}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-brand-maroon hover:bg-red-950 text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-md transition-all shrink-0 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isPdfLoading ? 'Saving...' : 'Save Bill (PDF)'}</span>
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Action Buttons Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-          {/* Primary Save / Download Bill Button */}
-          <button
-            type="button"
-            disabled={isPdfLoading}
-            onClick={handleDownloadBill}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-brand-maroon hover:bg-red-950 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg transition-all active:scale-95 cursor-pointer"
-          >
-            {isPdfLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-            ) : (
-              <Download className="w-4 h-4 text-amber-400" />
-            )}
-            <span>{isPdfLoading ? 'Generating Bill PDF...' : 'Download & Save Bill (PDF)'}</span>
-          </button>
-
-          {/* Print Bill Button */}
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-sm transition-all cursor-pointer"
-          >
-            <Printer className="w-4 h-4 text-zinc-500" />
-            <span>Print Bill</span>
-          </button>
-
-          {/* Menu Link Button */}
+        {/* ─── Footer Action ─── */}
+        <div className="flex justify-center pt-2">
           <Link
             to="/menu"
-            className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-brand-maroon font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-lg transition-all"
+            className="px-8 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-brand-maroon font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-lg transition-all"
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Order More Dishes</span>
