@@ -30,6 +30,7 @@ module.exports = {
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://maduraifoodcorner.pages.dev',
   FRONTEND_URL: process.env.FRONTEND_URL || 'https://maduraifoodcorner.pages.dev',
+  BACKEND_URL: process.env.BACKEND_URL || 'https://madurai-food-corner.onrender.com',
   JWT_SECRET: process.env.JWT_SECRET || 'mfc_jwt_secure_secret_key_prod_2026',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   MAX_NOTIFICATION_RETRIES: parseInt(process.env.MAX_NOTIFICATION_RETRIES || '3', 10),

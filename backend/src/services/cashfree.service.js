@@ -90,7 +90,7 @@ class CashfreeService {
       },
       order_meta: {
         return_url: returnUrl || `${process.env.FRONTEND_URL || 'https://maduraifoodcorner.pages.dev'}/order-success/${orderId}?order_id={order_id}&status=paid`,
-        notify_url: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payments/webhook`,
+        notify_url: `${(process.env.BACKEND_URL || 'https://madurai-food-corner.onrender.com').replace(/\/$/, '')}/api/payments/webhook`,
       },
     };
 
