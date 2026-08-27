@@ -174,7 +174,8 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
             if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {
                 Result.success(res.body()!!.data!!)
             } else {
-                val errorMsg = res.errorBody()?.string() ?: res.body()?.message ?: "Failed to create food item"
+                val rawError = res.errorBody()?.string()
+                val errorMsg = parseErrorMessage(rawError, res.body()?.message ?: "Failed to create food item")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -222,11 +223,26 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
             if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {
                 Result.success(res.body()!!.data!!)
             } else {
-                val errorMsg = res.errorBody()?.string() ?: res.body()?.message ?: "Failed to update food item"
+                val rawError = res.errorBody()?.string()
+                val errorMsg = parseErrorMessage(rawError, res.body()?.message ?: "Failed to update food item")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private fun parseErrorMessage(rawError: String?, fallback: String): String {
+        if (rawError.isNullOrBlank()) return fallback
+        return try {
+            val json = org.json.JSONObject(rawError)
+            if (json.has("message")) {
+                json.getString("message")
+            } else {
+                fallback
+            }
+        } catch (_: Exception) {
+            rawError
         }
     }
 

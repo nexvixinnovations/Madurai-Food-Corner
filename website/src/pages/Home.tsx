@@ -4,9 +4,8 @@ import { websiteApi } from '../services/api';
 import { FoodItem } from '../types';
 
 import { Hero } from '../components/home/Hero';
-import { FeaturedFoods } from '../components/home/FeaturedFoods';
-import { FeaturedCombos } from '../components/home/FeaturedCombos';
 import { CurrentOffersSection } from '../components/home/CurrentOffersSection';
+import { FeaturedFoods } from '../components/home/FeaturedFoods';
 import { WhyChooseUs } from '../components/home/WhyChooseUs';
 import { CallToAction } from '../components/home/CallToAction';
 import { FoodDetailsModal } from '../components/common/FoodDetailsModal';
@@ -20,12 +19,6 @@ export const Home: React.FC = () => {
     queryFn: () => websiteApi.getTodayMenu(),
   });
 
-  // Fetch Combos
-  const { data: combos = [], isLoading: combosLoading } = useQuery({
-    queryKey: ['combos'],
-    queryFn: () => websiteApi.getCombos(),
-  });
-
   // Fetch Offers
   const { data: offers = [], isLoading: offersLoading } = useQuery({
     queryKey: ['offers'],
@@ -35,9 +28,8 @@ export const Home: React.FC = () => {
   return (
     <div className="min-h-screen bg-brand-cream dark:bg-zinc-950">
       <Hero />
+      <CurrentOffersSection offers={offers} foods={foods} isLoading={offersLoading} />
       <FeaturedFoods foods={foods} isLoading={foodsLoading} onOpenDetails={setSelectedFood} />
-      <FeaturedCombos combos={combos} isLoading={combosLoading} />
-      <CurrentOffersSection offers={offers} isLoading={offersLoading} />
       <WhyChooseUs />
       <CallToAction />
 

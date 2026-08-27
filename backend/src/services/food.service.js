@@ -91,8 +91,18 @@ class FoodService {
     }
 
     let foodType = data.food_type ? data.food_type.trim() : 'Veg';
-    if (foodType === 'Non Veg') foodType = 'Non-Veg';
-    if (foodType === 'Egg Items') foodType = 'Egg';
+    const lowerType = foodType.toLowerCase();
+    if (lowerType === 'non veg' || lowerType === 'non-veg') foodType = 'Non-Veg';
+    else if (lowerType === 'egg items' || lowerType === 'egg') foodType = 'Egg';
+    else if (lowerType === 'veg' || lowerType === 'vegetarian') foodType = 'Veg';
+    else if (lowerType === 'snacks' || lowerType === 'snack') foodType = 'Veg';
+
+    let category = data.category ? data.category.trim() : 'General';
+    const lowerCat = category.toLowerCase();
+    if (lowerCat === 'non veg' || lowerCat === 'non-veg') category = 'Non-Veg';
+    else if (lowerCat === 'egg items' || lowerCat === 'egg') category = 'Egg Items';
+    else if (lowerCat === 'veg' || lowerCat === 'vegetarian') category = 'Veg';
+    else if (lowerCat === 'snacks' || lowerCat === 'snack') category = 'Snacks';
 
     const price = parseFloat(data.price);
     const offerEnabled = data.offer_enabled === 'true' || data.offer_enabled === true;
@@ -105,8 +115,8 @@ class FoodService {
     }
     const available = data.available !== undefined ? (data.available === 'true' || data.available === true) : true;
     const onlineAvailable = data.online_available !== undefined ? (data.online_available === 'true' || data.online_available === true) : true;
-    const displayOrder = data.display_order ? parseInt(data.display_order, 10) : 1;
-    const prepTime = data.preparation_time ? parseInt(data.preparation_time, 10) : 15;
+    const displayOrder = (data.display_order && !isNaN(parseInt(data.display_order, 10))) ? parseInt(data.display_order, 10) : 1;
+    const prepTime = (data.preparation_time && !isNaN(parseInt(data.preparation_time, 10))) ? parseInt(data.preparation_time, 10) : 15;
 
     let availableDays = "Every Day";
     if (Array.isArray(data.available_days)) {
@@ -118,7 +128,7 @@ class FoodService {
     const createdFood = await prisma.food_items.create({
       data: {
         name: data.name.trim(),
-        category: data.category.trim(),
+        category,
         food_type: foodType,
         description: data.description ? data.description.trim() : null,
         price,
@@ -181,8 +191,24 @@ class FoodService {
     const updateData = {};
 
     if (data.name !== undefined) updateData.name = data.name.trim();
-    if (data.category !== undefined) updateData.category = data.category.trim();
-    if (data.food_type !== undefined) updateData.food_type = data.food_type.trim();
+    if (data.category !== undefined) {
+      let category = data.category ? data.category.trim() : 'General';
+      const lowerCat = category.toLowerCase();
+      if (lowerCat === 'non veg' || lowerCat === 'non-veg') category = 'Non-Veg';
+      else if (lowerCat === 'egg items' || lowerCat === 'egg') category = 'Egg Items';
+      else if (lowerCat === 'veg' || lowerCat === 'vegetarian') category = 'Veg';
+      else if (lowerCat === 'snacks' || lowerCat === 'snack') category = 'Snacks';
+      updateData.category = category;
+    }
+    if (data.food_type !== undefined) {
+      let foodType = data.food_type ? data.food_type.trim() : 'Veg';
+      const lowerType = foodType.toLowerCase();
+      if (lowerType === 'non veg' || lowerType === 'non-veg') foodType = 'Non-Veg';
+      else if (lowerType === 'egg items' || lowerType === 'egg') foodType = 'Egg';
+      else if (lowerType === 'veg' || lowerType === 'vegetarian') foodType = 'Veg';
+      else if (lowerType === 'snacks' || lowerType === 'snack') foodType = 'Veg';
+      updateData.food_type = foodType;
+    }
     if (data.description !== undefined) updateData.description = data.description ? data.description.trim() : null;
     if (data.price !== undefined) updateData.price = parseFloat(data.price);
     if (data.offer_enabled !== undefined) updateData.offer_enabled = data.offer_enabled === 'true' || data.offer_enabled === true;

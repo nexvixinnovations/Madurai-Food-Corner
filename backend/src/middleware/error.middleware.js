@@ -22,10 +22,13 @@ const errorHandler = (err, req, res, next) => {
     message = 'Foreign key constraint violation.';
   }
 
-  // Handle Payload Too Large
-  if (err.type === 'entity.too.large') {
+  // Handle Payload / Upload Too Large
+  if (err.type === 'entity.too.large' || err.code === 'LIMIT_FILE_SIZE') {
     statusCode = 413;
-    message = 'Payload Too Large: Request size exceeds server limit.';
+    message = 'Image file too large: Maximum allowed upload size is 10MB.';
+  } else if (err.name === 'MulterError') {
+    statusCode = 400;
+    message = `File upload error: ${err.message}`;
   }
 
   // Log Error Details

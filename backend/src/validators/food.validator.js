@@ -19,9 +19,10 @@ const validateCreateFood = (data) => {
     // Default food_type if missing
     data.food_type = 'Veg';
   } else {
-    const allowedTypes = ['Veg', 'Non-Veg', 'Non Veg', 'Egg', 'Egg Items'];
-    if (!allowedTypes.includes(data.food_type.trim())) {
-      errors.food_type = `Food type must be one of: ${allowedTypes.join(', ')}.`;
+    const allowedTypes = ['Veg', 'Non-Veg', 'Non Veg', 'Egg', 'Egg Items', 'Snacks', 'Eggetarian', 'Beverage', 'Beverages', 'Dessert', 'Desserts', 'Starters', 'Main Course', 'Rice', 'Breads', 'Curries', 'General'];
+    const match = allowedTypes.find(t => t.toLowerCase() === data.food_type.trim().toLowerCase());
+    if (!match) {
+      errors.food_type = `Food type must be one of: Veg, Non-Veg, Egg, Snacks, Eggetarian.`;
     }
   }
 
@@ -70,9 +71,10 @@ const validateUpdateFood = (data) => {
   const errors = {};
 
   if (data.food_type) {
-    const allowedTypes = ['Veg', 'Non-Veg', 'Non Veg', 'Egg', 'Egg Items'];
-    if (!allowedTypes.includes(data.food_type.trim())) {
-      errors.food_type = `Food type must be one of: ${allowedTypes.join(', ')}.`;
+    const allowedTypes = ['Veg', 'Non-Veg', 'Non Veg', 'Egg', 'Egg Items', 'Snacks', 'Eggetarian', 'Beverage', 'Beverages', 'Dessert', 'Desserts', 'Starters', 'Main Course', 'Rice', 'Breads', 'Curries', 'General'];
+    const match = allowedTypes.find(t => t.toLowerCase() === data.food_type.trim().toLowerCase());
+    if (!match) {
+      errors.food_type = `Food type must be one of: Veg, Non-Veg, Egg, Snacks, Eggetarian.`;
     }
   }
 

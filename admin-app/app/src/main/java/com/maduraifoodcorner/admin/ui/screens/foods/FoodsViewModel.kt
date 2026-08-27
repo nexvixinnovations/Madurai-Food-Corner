@@ -134,7 +134,8 @@ class FoodsViewModel @Inject constructor(
         availableDays: String,
         imageFile: java.io.File?,
         mimeType: String = "image/jpeg",
-        originalName: String? = null
+        originalName: String? = null,
+        onResult: ((Boolean, String?) -> Unit)? = null
     ) {
         viewModelScope.launch {
             repository.createFoodMultipart(
@@ -143,8 +144,13 @@ class FoodsViewModel @Inject constructor(
                 .onSuccess {
                     _toastMessage.emit("Food item added successfully!")
                     loadFoods()
+                    onResult?.invoke(true, null)
                 }
-                .onFailure { error -> _toastMessage.emit("Unable to add food item: ${error.message}") }
+                .onFailure { error ->
+                    val errorMsg = error.message ?: "Failed to add food item"
+                    _toastMessage.emit("Unable to add food item: $errorMsg")
+                    onResult?.invoke(false, errorMsg)
+                }
         }
     }
 
@@ -161,7 +167,8 @@ class FoodsViewModel @Inject constructor(
         availableDays: String,
         imageFile: java.io.File?,
         mimeType: String = "image/jpeg",
-        originalName: String? = null
+        originalName: String? = null,
+        onResult: ((Boolean, String?) -> Unit)? = null
     ) {
         viewModelScope.launch {
             repository.updateFoodMultipart(
@@ -170,8 +177,13 @@ class FoodsViewModel @Inject constructor(
                 .onSuccess {
                     _toastMessage.emit("Food item updated successfully!")
                     loadFoods()
+                    onResult?.invoke(true, null)
                 }
-                .onFailure { error -> _toastMessage.emit("Unable to update food item: ${error.message}") }
+                .onFailure { error ->
+                    val errorMsg = error.message ?: "Failed to update food item"
+                    _toastMessage.emit("Unable to update food item: $errorMsg")
+                    onResult?.invoke(false, errorMsg)
+                }
         }
     }
 

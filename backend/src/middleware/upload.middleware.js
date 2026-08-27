@@ -1,11 +1,15 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const ApiError = require('../utils/apiError');
 
 // Storage configuration (saving temporarily to uploads directory before Cloudinary transfer)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
@@ -53,11 +57,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer upload middleware configuration (5MB limit)
+// Multer upload middleware configuration (10MB limit)
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5 Megabytes
+    fileSize: 10 * 1024 * 1024, // 10 Megabytes
   },
   fileFilter,
 });

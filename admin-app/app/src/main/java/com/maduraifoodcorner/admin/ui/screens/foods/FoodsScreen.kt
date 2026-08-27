@@ -1,7 +1,10 @@
 package com.maduraifoodcorner.admin.ui.screens.foods
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +32,15 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import coil.compose.AsyncImage
+import com.maduraifoodcorner.admin.data.model.FoodItem
+import com.maduraifoodcorner.admin.data.model.FoodCreateRequest
+import com.maduraifoodcorner.admin.data.model.Combo
+import com.maduraifoodcorner.admin.data.model.ComboCreateRequest
+import com.maduraifoodcorner.admin.data.model.Offer
+import com.maduraifoodcorner.admin.data.model.OfferCreateRequest
 import com.maduraifoodcorner.admin.data.model.*
 import com.maduraifoodcorner.admin.ui.components.LoadingState
 import java.io.File
@@ -59,10 +70,36 @@ fun uriToUploadFile(context: Context, uri: Uri): UploadFileData? {
         val originalName = "food_$timestamp$ext"
 
         val inputStream = contentResolver.openInputStream(uri) ?: return null
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+
+        if (bitmap == null) return null
+
+        // Scale down to max 1280px to prevent huge payloads and timeouts
+        val maxDimension = 1280
+        val width = bitmap.width
+        val height = bitmap.height
+        val scaledBitmap = if (width > maxDimension || height > maxDimension) {
+            val ratio = width.toFloat() / height.toFloat()
+            val (newWidth, newHeight) = if (ratio > 1f) {
+                maxDimension to (maxDimension / ratio).toInt()
+            } else {
+                (maxDimension * ratio).toInt() to maxDimension
+            }
+            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        } else {
+            bitmap
+        }
+
         val tempFile = File.createTempFile("food_$timestamp", ext, context.cacheDir)
         val outputStream = FileOutputStream(tempFile)
-        inputStream.copyTo(outputStream)
-        inputStream.close()
+        val compressFormat = when (cleanMimeType) {
+            "image/png" -> Bitmap.CompressFormat.PNG
+            "image/webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+            else -> Bitmap.CompressFormat.JPEG
+        }
+        scaledBitmap.compress(compressFormat, 85, outputStream)
+        outputStream.flush()
         outputStream.close()
 
         UploadFileData(
@@ -96,6 +133,12 @@ fun FoodsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadFoods()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.toastMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
     }
 
     Scaffold(
@@ -330,12 +373,10 @@ fun FoodsScreen(
         if (showAddFoodDialog) {
             AddFoodDialog(
                 onDismiss = { showAddFoodDialog = false },
-                onAddMultipart = { name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName ->
+                onAddMultipart = { name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName, onComplete ->
                     viewModel.addFoodMultipart(
-                        name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
+                        name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName, onComplete
                     )
-                    showAddFoodDialog = false
-                    Toast.makeText(context, "New food item created!", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -348,7 +389,6 @@ fun FoodsScreen(
                 onCreateCombo = { comboReq ->
                     viewModel.createCombo(comboReq)
                     showAddComboDialog = false
-                    Toast.makeText(context, "Combo package created! Reflected on website.", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -361,7 +401,6 @@ fun FoodsScreen(
                 onCreateOffer = { offerReq ->
                     viewModel.createOffer(offerReq)
                     showAddOfferDialog = false
-                    Toast.makeText(context, "Promotional Offer created! Reflected on website Offers page.", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -370,12 +409,10 @@ fun FoodsScreen(
             EditFoodDialog(
                 food = food,
                 onDismiss = { editingFoodItem = null },
-                onUpdateMultipart = { id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName ->
+                onUpdateMultipart = { id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName, onComplete ->
                     viewModel.updateFoodMultipart(
-                        id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName
+                        id, name, category, foodType, price, offerEnabled, offerPrice, available, onlineAvailable, availableDays, imageFile, mimeType, originalName, onComplete
                     )
-                    editingFoodItem = null
-                    Toast.makeText(context, "Food item updated successfully", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -711,7 +748,8 @@ fun AddFoodDialog(
     onDismiss: () -> Unit,
     onAddMultipart: (
         name: String, category: String, foodType: String, price: Double, offerEnabled: Boolean, offerPrice: Double?,
-        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
+        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?,
+        onComplete: (Boolean, String?) -> Unit
     ) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
@@ -720,6 +758,7 @@ fun AddFoodDialog(
     var offerEnabled by remember { mutableStateOf(false) }
     var offerPriceStr by remember { mutableStateOf("") }
     var onlineAvailable by remember { mutableStateOf(true) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     var isEveryDay by remember { mutableStateOf(true) }
     var mon by remember { mutableStateOf(false) }
@@ -745,7 +784,7 @@ fun AddFoodDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = { Text("Add New Food Item", fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -759,6 +798,7 @@ fun AddFoodDialog(
                     onValueChange = { name = it },
                     label = { Text("Item Name") },
                     singleLine = true,
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -768,8 +808,9 @@ fun AddFoodDialog(
                     listOf("Non-Veg", "Veg", "Egg Items").forEach { cat ->
                         FilterChip(
                             selected = selectedCategory == cat,
-                            onClick = { selectedCategory = cat },
-                            label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                            onClick = { if (!isSubmitting) selectedCategory = cat },
+                            label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            enabled = !isSubmitting
                         )
                     }
                 }
@@ -777,8 +818,9 @@ fun AddFoodDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(
                         selected = selectedCategory == "Snacks",
-                        onClick = { selectedCategory = "Snacks" },
-                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                        onClick = { if (!isSubmitting) selectedCategory = "Snacks" },
+                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        enabled = !isSubmitting
                     )
                 }
 
@@ -787,11 +829,13 @@ fun AddFoodDialog(
                     onValueChange = { priceStr = it },
                     label = { Text("Price (₹)") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it })
+                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it }, enabled = !isSubmitting)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Online Order Available", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -805,7 +849,8 @@ fun AddFoodDialog(
                             if (it) {
                                 mon = false; tue = false; wed = false; thu = false; fri = false; sat = false; sun = false
                             }
-                        }
+                        },
+                        enabled = !isSubmitting
                     )
                     Text("Every Day", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
@@ -832,7 +877,8 @@ fun AddFoodDialog(
                                                     "Saturday" -> sat = checked
                                                     "Sunday" -> sun = checked
                                                 }
-                                            }
+                                            },
+                                            enabled = !isSubmitting
                                         )
                                         Text(dayName, fontSize = 11.sp)
                                     }
@@ -843,7 +889,7 @@ fun AddFoodDialog(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = offerEnabled, onCheckedChange = { offerEnabled = it })
+                    Checkbox(checked = offerEnabled, onCheckedChange = { offerEnabled = it }, enabled = !isSubmitting)
                     Text("Offer Price Enabled", fontSize = 12.sp)
                 }
 
@@ -853,6 +899,8 @@ fun AddFoodDialog(
                         onValueChange = { offerPriceStr = it },
                         label = { Text("Offer Price (₹)") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        enabled = !isSubmitting,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -860,6 +908,7 @@ fun AddFoodDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Image, contentDescription = null)
@@ -870,6 +919,7 @@ fun AddFoodDialog(
         },
         confirmButton = {
             Button(
+                enabled = !isSubmitting,
                 onClick = {
                     val p = priceStr.toDoubleOrNull()
                     if (name.isBlank() || p == null) {
@@ -891,17 +941,36 @@ fun AddFoodDialog(
                     }
 
                     val op = if (offerEnabled) offerPriceStr.toDoubleOrNull() else null
+                    val foodType = when (selectedCategory) {
+                        "Veg" -> "Veg"
+                        "Non-Veg" -> "Non-Veg"
+                        "Egg Items" -> "Egg"
+                        "Snacks" -> "Veg"
+                        else -> "Veg"
+                    }
+                    isSubmitting = true
                     onAddMultipart(
-                        name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, true, onlineAvailable, formattedDays,
+                        name.trim(), selectedCategory, foodType, p, offerEnabled, op, true, onlineAvailable, formattedDays,
                         selectedUploadData?.file, selectedUploadData?.mimeType ?: "image/jpeg", selectedUploadData?.originalName
-                    )
+                    ) { success, _ ->
+                        isSubmitting = false
+                        if (success) {
+                            onDismiss()
+                        }
+                    }
                 }
             ) {
-                Text("Save Item")
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Saving...")
+                } else {
+                    Text("Save Item")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
                 Text("Cancel")
             }
         }
@@ -1209,7 +1278,8 @@ fun EditFoodDialog(
     onDismiss: () -> Unit,
     onUpdateMultipart: (
         id: String, name: String, category: String, foodType: String, price: Double, offerEnabled: Boolean, offerPrice: Double?,
-        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?
+        available: Boolean, onlineAvailable: Boolean, availableDays: String, imageFile: File?, mimeType: String, originalName: String?,
+        onComplete: (Boolean, String?) -> Unit
     ) -> Unit
 ) {
     var name by remember { mutableStateOf(food.name) }
@@ -1218,6 +1288,7 @@ fun EditFoodDialog(
     var offerEnabled by remember { mutableStateOf(food.offer_enabled) }
     var offerPriceStr by remember { mutableStateOf(food.offer_price?.toInt()?.toString() ?: "") }
     var onlineAvailable by remember { mutableStateOf(food.online_available) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val rawDays = food.available_days ?: "Every Day"
     var isEveryDay by remember { mutableStateOf(rawDays.contains("Every Day", ignoreCase = true)) }
@@ -1244,7 +1315,7 @@ fun EditFoodDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = { Text("Edit Food Item: ${food.name}", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             Column(
@@ -1258,6 +1329,7 @@ fun EditFoodDialog(
                     onValueChange = { name = it },
                     label = { Text("Item Name") },
                     singleLine = true,
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1267,8 +1339,9 @@ fun EditFoodDialog(
                     listOf("Non-Veg", "Veg", "Egg Items").forEach { cat ->
                         FilterChip(
                             selected = selectedCategory == cat,
-                            onClick = { selectedCategory = cat },
-                            label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                            onClick = { if (!isSubmitting) selectedCategory = cat },
+                            label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            enabled = !isSubmitting
                         )
                     }
                 }
@@ -1276,8 +1349,9 @@ fun EditFoodDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(
                         selected = selectedCategory == "Snacks",
-                        onClick = { selectedCategory = "Snacks" },
-                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                        onClick = { if (!isSubmitting) selectedCategory = "Snacks" },
+                        label = { Text("🍟 Snacks", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        enabled = !isSubmitting
                     )
                 }
 
@@ -1286,11 +1360,13 @@ fun EditFoodDialog(
                     onValueChange = { priceStr = it },
                     label = { Text("Price (₹)") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it })
+                    Switch(checked = onlineAvailable, onCheckedChange = { onlineAvailable = it }, enabled = !isSubmitting)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Online Order Available", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -1304,7 +1380,8 @@ fun EditFoodDialog(
                             if (it) {
                                 mon = false; tue = false; wed = false; thu = false; fri = false; sat = false; sun = false
                             }
-                        }
+                        },
+                        enabled = !isSubmitting
                     )
                     Text("Every Day", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
@@ -1331,7 +1408,8 @@ fun EditFoodDialog(
                                                     "Saturday" -> sat = checked
                                                     "Sunday" -> sun = checked
                                                 }
-                                            }
+                                            },
+                                            enabled = !isSubmitting
                                         )
                                         Text(dayName, fontSize = 11.sp)
                                     }
@@ -1342,7 +1420,7 @@ fun EditFoodDialog(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = offerEnabled, onCheckedChange = { offerEnabled = it })
+                    Checkbox(checked = offerEnabled, onCheckedChange = { offerEnabled = it }, enabled = !isSubmitting)
                     Text("Offer Price Enabled", fontSize = 12.sp)
                 }
 
@@ -1352,6 +1430,8 @@ fun EditFoodDialog(
                         onValueChange = { offerPriceStr = it },
                         label = { Text("Offer Price (₹)") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        enabled = !isSubmitting,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1372,6 +1452,7 @@ fun EditFoodDialog(
 
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
+                    enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Image, contentDescription = null)
@@ -1382,6 +1463,7 @@ fun EditFoodDialog(
         },
         confirmButton = {
             Button(
+                enabled = !isSubmitting,
                 onClick = {
                     val p = priceStr.toDoubleOrNull()
                     if (name.isBlank() || p == null) {
@@ -1403,17 +1485,36 @@ fun EditFoodDialog(
                     }
 
                     val op = if (offerEnabled) offerPriceStr.toDoubleOrNull() else null
+                    val foodType = when (selectedCategory) {
+                        "Veg" -> "Veg"
+                        "Non-Veg" -> "Non-Veg"
+                        "Egg Items" -> "Egg"
+                        "Snacks" -> "Veg"
+                        else -> "Veg"
+                    }
+                    isSubmitting = true
                     onUpdateMultipart(
-                        food.id, name.trim(), selectedCategory, selectedCategory, p, offerEnabled, op, food.available, onlineAvailable, formattedDays,
+                        food.id, name.trim(), selectedCategory, foodType, p, offerEnabled, op, food.available, onlineAvailable, formattedDays,
                         selectedUploadData?.file, selectedUploadData?.mimeType ?: "image/jpeg", selectedUploadData?.originalName
-                    )
+                    ) { success, _ ->
+                        isSubmitting = false
+                        if (success) {
+                            onDismiss()
+                        }
+                    }
                 }
             ) {
-                Text("Update Item")
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Updating...")
+                } else {
+                    Text("Update Item")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
                 Text("Cancel")
             }
         }
