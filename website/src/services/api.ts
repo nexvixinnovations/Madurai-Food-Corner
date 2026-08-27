@@ -90,8 +90,24 @@ export const websiteApi = {
     customer_phone?: string;
     customer_email?: string;
     return_url?: string;
-  }): Promise<{ payment_session_id: string; order_id: string }> => {
-    const res = await apiClient.post<ApiResponse<{ payment_session_id: string; order_id: string }>>(
+  }): Promise<{
+    payment_session_id: string;
+    paymentSessionId: string;
+    order_id: string;
+    order_status?: string;
+    cf_order_id?: string;
+    mode?: 'production' | 'sandbox';
+    environment?: 'production' | 'sandbox';
+  }> => {
+    const res = await apiClient.post<ApiResponse<{
+      payment_session_id: string;
+      paymentSessionId: string;
+      order_id: string;
+      order_status?: string;
+      cf_order_id?: string;
+      mode?: 'production' | 'sandbox';
+      environment?: 'production' | 'sandbox';
+    }>>(
       '/payments/create-session',
       payload
     );

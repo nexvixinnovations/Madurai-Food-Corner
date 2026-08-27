@@ -119,16 +119,33 @@ class CashfreeService {
       cf.XApiVersion = Cashfree.XApiVersion || '2023-08-01';
 
       const response = await cf.PGCreateOrder(requestPayload);
+      const resData = response?.data || response;
       
-      if (!response.data || !response.data.payment_session_id) {
+      if (!resData || !resData.payment_session_id) {
+        console.error('[CASHFREE PGCreateOrder INVALID RESPONSE]', resData);
         throw new ApiError(500, 'Failed to obtain payment session from Cashfree Payment Gateway.');
       }
 
+      const envRaw = (process.env.CASHFREE_ENV || envConfig.CASHFREE_ENV || 'SANDBOX').trim();
+      const currentMode = envRaw.toUpperCase() === 'PRODUCTION' ? 'production' : 'sandbox';
+
+      console.log('[CASHFREE PGCreateOrder SUCCESS]', {
+        order_id: resData.order_id,
+        order_status: resData.order_status,
+        cf_order_id: resData.cf_order_id,
+        mode: currentMode,
+        has_payment_session_id: !!resData.payment_session_id,
+        payment_session_id_prefix: resData.payment_session_id ? resData.payment_session_id.substring(0, 15) + '...' : null,
+      });
+
       return {
-        payment_session_id: response.data.payment_session_id,
-        order_id: response.data.order_id,
-        order_status: response.data.order_status,
-        cf_order_id: response.data.cf_order_id,
+        payment_session_id: resData.payment_session_id,
+        paymentSessionId: resData.payment_session_id,
+        order_id: resData.order_id,
+        order_status: resData.order_status,
+        cf_order_id: resData.cf_order_id,
+        mode: currentMode,
+        environment: currentMode,
       };
     } catch (error) {
       console.error('[CASHFREE SERVICE ERROR]', error?.response?.data || error.message);

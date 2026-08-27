@@ -213,16 +213,33 @@ export const Checkout: React.FC = () => {
 
       toast.dismiss('payment-loading');
 
-      // 3. Initialize Cashfree JS SDK & launch checkout with full-page redirect
-      const isProduction = import.meta.env.VITE_CASHFREE_MODE === 'production';
-      const cashfree = await load({ mode: isProduction ? 'production' : 'sandbox' });
+      const rawSessionId = sessionData?.paymentSessionId || sessionData?.payment_session_id;
+
+      if (!rawSessionId || typeof rawSessionId !== 'string' || rawSessionId.trim() === '' || rawSessionId === newOrder.id || rawSessionId === newOrder.order_number) {
+        console.error('[CASHFREE CHECKOUT ERROR] Invalid session data received:', sessionData);
+        toast.error('Invalid payment session ID received from payment gateway. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Initialize Cashfree JS SDK matching backend environment mode & launch checkout
+      const sdkMode: 'production' | 'sandbox' =
+        sessionData?.mode === 'production' ||
+        sessionData?.environment === 'production' ||
+        import.meta.env.VITE_CASHFREE_MODE === 'production'
+          ? 'production'
+          : 'sandbox';
+
+      console.log('[CASHFREE CHECKOUT] Launching Cashfree SDK with mode:', sdkMode, 'for order:', safeOrderNum);
+
+      const cashfree = await load({ mode: sdkMode });
 
       // Clear cart BEFORE cashfree.checkout() triggers the full-page redirect.
       // Code after checkout() with redirectTarget:'_self' may never execute.
       clearCart();
 
       cashfree.checkout({
-        paymentSessionId: sessionData.payment_session_id,
+        paymentSessionId: rawSessionId.trim(),
         redirectTarget: '_self',
       });
     } catch (err: any) {
