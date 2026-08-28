@@ -222,18 +222,31 @@ export const Checkout: React.FC = () => {
         return;
       }
 
-      // 3. Initialize Cashfree JS SDK matching backend environment mode & launch checkout
-      // IMPORTANT: Wrap the entire condition in parentheses.
-      // Without them, JS operator precedence evaluates `||` before `? :`, causing
-      // `true || (...) ? 'production' : 'sandbox'` to short-circuit to boolean `true`
-      // instead of the string 'production', making load({ mode: true }) invalid.
-      const sdkMode: 'production' | 'sandbox' = (
-        sessionData?.mode === 'production' ||
-        sessionData?.environment === 'production' ||
-        import.meta.env.VITE_CASHFREE_MODE === 'production'
-      ) ? 'production' : 'sandbox';
+      // 3. Determine Cashfree SDK mode.
+      // Priority order:
+      //   1. Backend response field `mode` (most authoritative)
+      //   2. Backend response field `environment`
+      //   3. VITE_CASHFREE_MODE env var
+      //   4. Default → 'production'  (fail-safe: misconfiguration should not silently downgrade to sandbox)
+      //
+      // Using explicit string comparison instead of a chained ternary to be
+      // 100% minifier-safe and avoid JS operator-precedence pitfalls.
+      let sdkMode: 'production' | 'sandbox' = 'production'; // safe default
+      if (sessionData?.mode === 'sandbox' || sessionData?.environment === 'sandbox') {
+        sdkMode = 'sandbox';
+      }
+      if (import.meta.env.VITE_CASHFREE_MODE === 'sandbox') {
+        sdkMode = 'sandbox'; // env var can only force sandbox, not override backend's production
+      }
 
-      console.log('[CASHFREE CHECKOUT] Launching Cashfree SDK with mode:', sdkMode, 'for order:', safeOrderNum);
+      // Safe diagnostic log — no session ID, no secrets
+      console.log('[CASHFREE CHECKOUT DIAGNOSTIC]', {
+        cashfreeMode: sessionData?.mode,
+        cashfreeEnvironment: sessionData?.environment,
+        sdkModeResolved: sdkMode,
+        paymentSessionPresent: Boolean(rawSessionId),
+        apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://madurai-food-corner.onrender.com/api/website',
+      });
 
       const cashfree = await load({ mode: sdkMode });
 
