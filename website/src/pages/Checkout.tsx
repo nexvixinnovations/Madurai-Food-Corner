@@ -223,12 +223,15 @@ export const Checkout: React.FC = () => {
       }
 
       // 3. Initialize Cashfree JS SDK matching backend environment mode & launch checkout
-      const sdkMode: 'production' | 'sandbox' =
+      // IMPORTANT: Wrap the entire condition in parentheses.
+      // Without them, JS operator precedence evaluates `||` before `? :`, causing
+      // `true || (...) ? 'production' : 'sandbox'` to short-circuit to boolean `true`
+      // instead of the string 'production', making load({ mode: true }) invalid.
+      const sdkMode: 'production' | 'sandbox' = (
         sessionData?.mode === 'production' ||
         sessionData?.environment === 'production' ||
         import.meta.env.VITE_CASHFREE_MODE === 'production'
-          ? 'production'
-          : 'sandbox';
+      ) ? 'production' : 'sandbox';
 
       console.log('[CASHFREE CHECKOUT] Launching Cashfree SDK with mode:', sdkMode, 'for order:', safeOrderNum);
 
