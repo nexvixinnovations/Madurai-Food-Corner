@@ -16,10 +16,22 @@ router.post('/cashfree/verify', paymentController.verifyCashfreePayment);
 // POST Cashfree webhook notifications (Server-to-Server)
 router.post('/webhook', paymentController.handleCashfreeWebhook);
 
-// Explicitly reject all non-POST methods on /webhook to prevent the /:id
-// wildcard from matching (e.g. GET /webhook would otherwise pass the string
-// "webhook" into prisma.payments.findUnique({ where: { id: UUID } }) causing
-// a Prisma UUID parse error and a 500 response).
+// Explicitly handle GET /webhook with a 200 reachability response.
+// Without this, GET /api/payments/webhook falls through to GET /:id and
+// passes the literal string "webhook" into prisma.payments.findUnique
+// ({ where: { id: UUID } }), causing a Prisma UUID parse error and HTTP 500.
+//
+// Cashfree's dashboard "Test Webhook Endpoint" sends a GET probe to verify
+// the endpoint is reachable before sending the actual POST notification.
+// Returning 200 here satisfies that probe without executing any payment logic.
+router.get('/webhook', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Cashfree webhook endpoint is reachable. Use POST for webhook events.',
+  });
+});
+
+// All other non-POST methods on /webhook → 405
 router.all('/webhook', (req, res) => {
   res.status(405).json({
     success: false,

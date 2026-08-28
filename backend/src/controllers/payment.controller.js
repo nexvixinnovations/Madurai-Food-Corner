@@ -28,7 +28,13 @@ const getPayments = asyncHandler(async (req, res) => {
  * GET /api/payments/:id
  */
 const getPaymentById = asyncHandler(async (req, res) => {
-  const payment = await paymentService.getPaymentById(req.params.id);
+  const id = req.params.id;
+  // Guard: reject obviously non-UUID strings before hitting Prisma UUID column
+  const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!UUID_RE.test(id)) {
+    throw new ApiError(400, `Invalid payment ID format: '${id}' is not a valid UUID.`);
+  }
+  const payment = await paymentService.getPaymentById(id);
   res.status(200).json(new ApiResponse(200, payment, 'Payment details retrieved successfully'));
 });
 
@@ -259,11 +265,30 @@ const verifyCashfreePayment = asyncHandler(async (req, res) => {
 const handleCashfreeWebhook = asyncHandler(async (req, res) => {
   const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
   const timestamp = req.headers['x-webhook-timestamp'] || req.headers['x-timestamp'];
+  const webhookVersion = req.headers['x-webhook-version'] || 'unknown';
   const rawBody = req.rawBody || JSON.stringify(req.body);
+
+  // --- Safe diagnostic log (no secrets, no PII) ---
+  const diagEventType = req.body?.type || req.body?.event || 'unknown';
+  const diagOrderId = req.body?.data?.order?.order_id || req.body?.data?.order_id || 'none';
+  const diagCfPaymentId = req.body?.data?.payment?.cf_payment_id || 'none';
+  console.log('[CASHFREE WEBHOOK RECEIVED]', {
+    method: req.method,
+    path: req.originalUrl,
+    webhookVersion,
+    eventType: diagEventType,
+    orderId: diagOrderId,
+    cfPaymentId: diagCfPaymentId,
+    hasSignatureHeader: !!signature,
+    hasTimestampHeader: !!timestamp,
+    hasRawBody: !!req.rawBody,
+    rawBodyLength: rawBody ? rawBody.length : 0,
+  });
 
   // Validate HMAC-SHA256 Signature
   if (process.env.NODE_ENV === 'production' || signature) {
     const isValid = cashfreeService.verifyWebhookSignature(signature, rawBody, timestamp);
+    console.log('[CASHFREE WEBHOOK SIGNATURE]', { signatureValid: isValid });
     if (!isValid) {
       console.warn('[CASHFREE WEBHOOK SECURITY ALERT] Rejected webhook with invalid signature');
       throw new ApiError(401, 'Unauthorized: Invalid Cashfree Webhook Signature');
