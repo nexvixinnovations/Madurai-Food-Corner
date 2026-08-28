@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ApiResponse, FoodItem, Combo, Offer, Order, RestaurantSettings } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/website';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://madurai-food-corner.onrender.com/api/website';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

@@ -145,6 +145,51 @@ class PaymentService {
     const paidAt = data.paid_at ? new Date(data.paid_at) : new Date();
 
     return await prisma.$transaction(async (tx) => {
+      // Idempotency check: if a payment with this transaction_id already exists, update and return it without creating duplicates
+      if (transactionId) {
+        const existingPayment = await tx.payments.findFirst({
+          where: { transaction_id: transactionId },
+          include: {
+            orders: {
+              include: {
+                customers: true,
+              },
+            },
+          },
+        });
+
+        if (existingPayment) {
+          if (existingPayment.status.toLowerCase() === paymentStatus.toLowerCase()) {
+            return existingPayment;
+          }
+
+          const updatedPayment = await tx.payments.update({
+            where: { id: existingPayment.id },
+            data: { status: paymentStatus },
+            include: {
+              orders: {
+                include: {
+                  customers: true,
+                },
+              },
+            },
+          });
+
+          await tx.orders.update({
+            where: { id: data.order_id },
+            data: {
+              payment_status: paymentStatus,
+              payment_method: data.payment_method ? data.payment_method.trim() : order.payment_method,
+              ...(paymentStatus.toLowerCase() === 'paid' && order.status && order.status.toLowerCase() === 'pending'
+                ? { status: 'Accepted' }
+                : {}),
+            },
+          });
+
+          return updatedPayment;
+        }
+      }
+
       // 1. Create Payment record
       const payment = await tx.payments.create({
         data: {

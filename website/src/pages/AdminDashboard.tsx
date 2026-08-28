@@ -2,7 +2,7 @@ import React from 'react';
 import { Download } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/website', '') || 'http://localhost:5000/api';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/website', '') || 'https://madurai-food-corner.onrender.com/api';
 
   const downloadCSV = (start: Date, end: Date, label: string) => {
     const startStr = start.toISOString().split('T')[0];
