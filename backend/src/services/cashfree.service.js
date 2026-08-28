@@ -238,7 +238,12 @@ class CashfreeService {
         .update(payloadToSign)
         .digest('base64');
 
-      return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computedSignature));
+      const sigBuf = Buffer.from(signature);
+      const computedBuf = Buffer.from(computedSignature);
+      // timingSafeEqual throws TypeError if buffer byte lengths differ;
+      // treat length mismatch as a failed verification without throwing.
+      if (sigBuf.length !== computedBuf.length) return false;
+      return crypto.timingSafeEqual(sigBuf, computedBuf);
     } catch (error) {
       console.error('[CASHFREE WEBHOOK VERIFY ERROR]', error.message);
       return false;
