@@ -52,16 +52,16 @@ data class CreateOrderItemRequest(
 )
 
 data class CreateCustomerRequest(
-    val name: String? = null,
-    val phone: String? = null,
+    val name: String = "Walk-in Customer",
+    val phone: String = "0000000000",
     val email: String? = null
 )
 
 data class CreatePosOrderRequest(
-    val customer: CreateCustomerRequest? = null,
+    val customer: CreateCustomerRequest = CreateCustomerRequest(),
     val required_date: String,
     val required_time: String? = "12:00",
-    val order_type: String = "Parcel",
+    val order_type: String = "Shop",
     val payment_method: String = "Cash",
     val payment_status: String = "Completed",
     val status: String = "Completed",

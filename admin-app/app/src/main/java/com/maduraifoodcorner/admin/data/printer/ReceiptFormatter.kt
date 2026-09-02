@@ -23,7 +23,8 @@ object ReceiptFormatter {
         val timeStr = order.required_time ?: "12:30 PM"
         sb.append("Time     : $timeStr\n")
 
-        sb.append("Order    : ${order.order_type}\n")
+        val displayOrderType = if (order.order_source.contains("POS", ignoreCase = true) || order.order_type.equals("Parcel", ignoreCase = true) && order.order_source.contains("POS", ignoreCase = true)) "Shop" else order.order_type
+        sb.append("Order    : $displayOrderType\n")
         sb.append("Source   : ${order.order_source}\n")
         sb.append("--------------------------------\n")
 

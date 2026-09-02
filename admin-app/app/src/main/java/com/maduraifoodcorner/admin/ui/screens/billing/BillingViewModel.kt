@@ -243,7 +243,7 @@ class BillingViewModel @Inject constructor(
     }
 
     fun generatePosOrder(
-        orderType: String = "Parcel",
+        orderType: String = "Shop",
         paymentMethod: String = "Cash",
         customerName: String = "",
         customerPhone: String = "",
@@ -271,12 +271,10 @@ class BillingViewModel @Inject constructor(
             }
 
             val posOrderReq = CreatePosOrderRequest(
-                customer = if (customerName.isNotBlank() || customerPhone.isNotBlank()) {
-                    CreateCustomerRequest(
-                        name = customerName.trim().ifEmpty { null },
-                        phone = customerPhone.trim().ifEmpty { null }
-                    )
-                } else null,
+                customer = CreateCustomerRequest(
+                    name = if (customerName.isNotBlank()) customerName.trim() else "Walk-in Customer",
+                    phone = if (customerPhone.isNotBlank()) customerPhone.trim() else "0000000000"
+                ),
                 required_date = todayStr,
                 required_time = timeStr,
                 order_type = orderType,

@@ -74,8 +74,15 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
             if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {
                 Result.success(res.body()!!.data!!)
             } else {
-                val errorMsg = res.errorBody()?.string() ?: res.body()?.message ?: "Failed to create POS order"
-                Result.failure(Exception(errorMsg))
+                val rawError = res.errorBody()?.string()
+                val parsedMsg = try {
+                    val json = org.json.JSONObject(rawError ?: "{}")
+                    val msg = json.optString("message", "")
+                    if (msg.isNotEmpty()) msg else (res.body()?.message ?: "Failed to create POS order")
+                } catch (e: Exception) {
+                    res.body()?.message ?: "Failed to create POS order"
+                }
+                Result.failure(Exception(parsedMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
