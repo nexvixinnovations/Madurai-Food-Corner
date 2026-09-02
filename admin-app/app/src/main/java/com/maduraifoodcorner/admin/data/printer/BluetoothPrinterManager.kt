@@ -40,14 +40,22 @@ class BluetoothPrinterManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun getPairedPrinters(): List<BluetoothPrinterDevice> {
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-            return emptyList()
-        }
-        return bluetoothAdapter.bondedDevices.map { device ->
-            BluetoothPrinterDevice(
-                name = device.name ?: "Unknown Device",
-                address = device.address
-            )
+        return try {
+            if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+                return emptyList()
+            }
+            bluetoothAdapter.bondedDevices?.map { device ->
+                BluetoothPrinterDevice(
+                    name = device.name ?: "Unknown Device",
+                    address = device.address
+                )
+            } ?: emptyList()
+        } catch (e: SecurityException) {
+            _statusMessage.value = "Bluetooth permission required"
+            emptyList()
+        } catch (e: Exception) {
+            _statusMessage.value = "Error reading paired devices: ${e.localizedMessage}"
+            emptyList()
         }
     }
 
@@ -73,8 +81,12 @@ class BluetoothPrinterManager(private val context: Context) {
 
             prefs.setSelectedPrinterAddress(macAddress)
             _printerState.value = PrinterState.Connected
-            _statusMessage.value = "Connected to ${device.name}"
+            _statusMessage.value = "Connected to ${try { device.name ?: macAddress } catch (e: Exception) { macAddress }}"
             true
+        } catch (e: SecurityException) {
+            _printerState.value = PrinterState.Failed
+            _statusMessage.value = "Bluetooth permission declined/denied"
+            false
         } catch (e: Exception) {
             _printerState.value = PrinterState.Failed
             _statusMessage.value = "Connection failed: ${e.message}"

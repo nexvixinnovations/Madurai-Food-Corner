@@ -1,6 +1,14 @@
 package com.maduraifoodcorner.admin.ui.screens.printer
 
-import android.widget.Toast
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.maduraifoodcorner.admin.data.printer.PrinterState
 
@@ -25,9 +34,30 @@ fun PrinterSettingsScreen(
     onOpenDrawer: () -> Unit,
     viewModel: PrinterViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val pairedDevices by viewModel.pairedDevices.collectAsState()
     val printerState by viewModel.printerState.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
+
+    var hasBluetoothPermission by remember {
+        mutableStateOf(checkBluetoothPermissions(context))
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionsMap ->
+        val allGranted = permissionsMap.values.all { it }
+        hasBluetoothPermission = allGranted
+        if (allGranted) {
+            viewModel.refreshDevices()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasBluetoothPermission) {
+            permissionLauncher.launch(getRequiredBluetoothPermissions())
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -39,7 +69,14 @@ fun PrinterSettingsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refreshDevices() }) {
+                    IconButton(onClick = {
+                        hasBluetoothPermission = checkBluetoothPermissions(context)
+                        if (hasBluetoothPermission) {
+                            viewModel.refreshDevices()
+                        } else {
+                            permissionLauncher.launch(getRequiredBluetoothPermissions())
+                        }
+                    }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Scan Printers")
                     }
                 }
@@ -53,6 +90,69 @@ fun PrinterSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Bluetooth Permission Warning Card if not granted
+            if (!hasBluetoothPermission) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Bluetooth Permission Needed",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = Color(0xFFE65100)
+                            )
+                        }
+                        Text(
+                            text = "To find and connect to ESC/POS thermal printers, please allow Nearby Devices / Bluetooth permission.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF5D4037)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = {
+                                    permissionLauncher.launch(getRequiredBluetoothPermissions())
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Grant Permission", fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.fromParts("package", context.packageName, null)
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("App Settings", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Status Connection Banner
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -139,7 +239,13 @@ fun PrinterSettingsScreen(
                 ) {
                     items(pairedDevices) { device ->
                         Card(
-                            onClick = { viewModel.connectPrinter(device) },
+                            onClick = {
+                                if (hasBluetoothPermission) {
+                                    viewModel.connectPrinter(device)
+                                } else {
+                                    permissionLauncher.launch(getRequiredBluetoothPermissions())
+                                }
+                            },
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
@@ -150,7 +256,7 @@ fun PrinterSettingsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = device.name,
                                         fontWeight = FontWeight.Bold,
@@ -164,7 +270,13 @@ fun PrinterSettingsScreen(
                                 }
 
                                 Button(
-                                    onClick = { viewModel.connectPrinter(device) },
+                                    onClick = {
+                                        if (hasBluetoothPermission) {
+                                            viewModel.connectPrinter(device)
+                                        } else {
+                                            permissionLauncher.launch(getRequiredBluetoothPermissions())
+                                        }
+                                    },
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Text("Connect")
@@ -175,5 +287,27 @@ fun PrinterSettingsScreen(
                 }
             }
         }
+    }
+}
+
+private fun getRequiredBluetoothPermissions(): Array<String> {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        arrayOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN
+        )
+    } else {
+        arrayOf(
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_ADMIN,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+    }
+}
+
+private fun checkBluetoothPermissions(context: Context): Boolean {
+    val permissions = getRequiredBluetoothPermissions()
+    return permissions.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 }
