@@ -260,25 +260,28 @@ class OrderService {
     // 2. Generate Sequential Order Number by Channel (MFCW for website, MFCS for shop/POS)
     const orderNumber = await this.generateOrderNumber(data.order_source);
 
-    const customerPhone = (data.customer.phone && data.customer.phone.trim()) ? data.customer.phone.trim() : '9999999999';
-    const customerName = (data.customer.name && data.customer.name.trim()) ? data.customer.name.trim() : 'Counter Customer';
-    const customerEmail = data.customer.email ? data.customer.email.trim() : null;
+    const customerPhone = (data.customer && data.customer.phone && data.customer.phone.trim()) ? data.customer.phone.trim() : null;
+    const customerName = (data.customer && data.customer.name && data.customer.name.trim()) ? data.customer.name.trim() : null;
+    const customerEmail = (data.customer && data.customer.email) ? data.customer.email.trim() : null;
 
     // 3. Execute Database Transaction for Customer, Order Header, Order Items, & Initial Payment
     return await prisma.$transaction(async (tx) => {
-      // Find or create customer
-      let customer = await tx.customers.findFirst({
-        where: { phone: customerPhone },
-      });
-
-      if (!customer) {
-        customer = await tx.customers.create({
-          data: {
-            name: customerName,
-            phone: customerPhone,
-            email: customerEmail,
-          },
+      // Find or create customer only if a valid phone number was provided
+      let customer = null;
+      if (customerPhone && customerPhone !== '9999999999' && customerPhone.length >= 7) {
+        customer = await tx.customers.findFirst({
+          where: { phone: customerPhone },
         });
+
+        if (!customer && customerName) {
+          customer = await tx.customers.create({
+            data: {
+              name: customerName,
+              phone: customerPhone,
+              email: customerEmail,
+            },
+          });
+        }
       }
 
       // Determine initial payment status: MUST be 'Pending' by default for all unverified / online orders
@@ -299,7 +302,7 @@ class OrderService {
       const newOrder = await tx.orders.create({
         data: {
           order_number: orderNumber,
-          customer_id: customer.id,
+          customer_id: customer ? customer.id : null,
           order_source: data.order_source ? data.order_source.trim() : 'website',
           required_date: requiredDate,
           required_time: requiredTime,

@@ -97,7 +97,11 @@ fun OrderDetailsScreen(
                 }
 
                 // Customer Info Card
-                if (o.customers != null) {
+                if (o.customers != null &&
+                    !o.customers.name.isNullOrBlank() &&
+                    o.customers.name.lowercase() !in listOf("counter customer", "test user", "walk-in", "guest") &&
+                    o.customers.phone != "9999999999"
+                ) {
                     item {
                         Card(
                             shape = RoundedCornerShape(16.dp),

@@ -8,11 +8,11 @@ const validateCreateOrder = (data) => {
   const errors = {};
 
   // Customer info validation
-  if (!data.customer || typeof data.customer !== 'object') {
-    errors.customer = 'Customer details object is required.';
-  } else {
-    const isShop = data.order_source && ['POS Counter', 'Shop'].includes(data.order_source.trim());
-    if (!isShop) {
+  const isShop = data.order_source && ['POS Counter', 'Shop', 'pos'].some(s => data.order_source.toLowerCase().includes(s.toLowerCase()));
+  if (!isShop) {
+    if (!data.customer || typeof data.customer !== 'object') {
+      errors.customer = 'Customer details object is required.';
+    } else {
       if (!data.customer.name || typeof data.customer.name !== 'string' || !data.customer.name.trim()) {
         errors['customer.name'] = 'Customer name is required.';
       }

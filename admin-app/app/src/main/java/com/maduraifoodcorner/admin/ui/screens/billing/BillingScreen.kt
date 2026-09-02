@@ -424,7 +424,9 @@ fun BillingScreen(
                                 ) {
                                     Column(modifier = Modifier.padding(10.dp)) {
                                         Text("#${order.order_number} • ${order.order_type}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        Text("Customer: ${order.customers?.name ?: "Guest"} (${order.customers?.phone ?: ""})", fontSize = 11.sp, color = Color.Gray)
+                                        if (!order.customers?.name.isNullOrBlank() && order.customers?.name?.lowercase() !in listOf("counter customer", "test user", "guest", "walk-in")) {
+                                            Text("Customer: ${order.customers?.name} (${order.customers?.phone ?: ""})", fontSize = 11.sp, color = Color.Gray)
+                                        }
                                         Text("Total: ₹${order.total_amount.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                                     }
                                 }

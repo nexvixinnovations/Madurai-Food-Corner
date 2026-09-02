@@ -271,10 +271,12 @@ class BillingViewModel @Inject constructor(
             }
 
             val posOrderReq = CreatePosOrderRequest(
-                customer = CreateCustomerRequest(
-                    name = customerName,
-                    phone = customerPhone
-                ),
+                customer = if (customerName.isNotBlank() || customerPhone.isNotBlank()) {
+                    CreateCustomerRequest(
+                        name = customerName.trim().ifEmpty { null },
+                        phone = customerPhone.trim().ifEmpty { null }
+                    )
+                } else null,
                 required_date = todayStr,
                 required_time = timeStr,
                 order_type = orderType,

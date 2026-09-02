@@ -39,7 +39,11 @@ class PrinterViewModel @Inject constructor(
     }
 
     fun refreshDevices() {
-        _pairedDevices.value = printerManager.getPairedPrinters()
+        try {
+            _pairedDevices.value = printerManager.getPairedPrinters()
+        } catch (e: Exception) {
+            _pairedDevices.value = emptyList()
+        }
     }
 
     fun connectPrinter(device: BluetoothPrinterDevice) {

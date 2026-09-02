@@ -367,6 +367,8 @@ fun OrdersScreen(
                                         }
                                     }
                                 }
+                            }
+                        } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(16.dp),
@@ -481,7 +483,10 @@ fun OrderItemCard(
                 color = Color.Gray
             )
 
-            if (!order.customers?.name.isNullOrEmpty()) {
+            if (!order.customers?.name.isNullOrEmpty() &&
+                order.customers?.name?.lowercase() !in listOf("counter customer", "test user", "walk-in", "guest") &&
+                order.customers?.phone != "9999999999"
+            ) {
                 Text(
                     text = "Customer: ${order.customers?.name} (${order.customers?.phone})",
                     fontSize = 12.sp,
