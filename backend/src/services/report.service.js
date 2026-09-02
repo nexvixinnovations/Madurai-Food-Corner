@@ -62,10 +62,14 @@ class ReportService {
     if (status) where.status = { equals: status.trim(), mode: 'insensitive' };
 
     const [salesAgg, totalOrdersCount, totalCustomersCount, cancelledOrdersCount, refundsAgg] = await Promise.all([
-      // Total Revenue from accepted orders
+      // Total Revenue from confirmed paid orders (pending excluded)
       prisma.orders.aggregate({
         _sum: { total_amount: true },
-        where: { ...where, status: { in: ['Accepted', 'accepted'] } },
+        where: {
+          ...where,
+          payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+          status: { notIn: ['Cancelled', 'cancelled'] },
+        },
       }),
       // Total Orders
       prisma.orders.count({ where }),
@@ -114,6 +118,11 @@ class ReportService {
     const week = this.getDateRange('this_week');
     const month = this.getDateRange('this_month');
 
+    const paidCondition = {
+      payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+      status: { notIn: ['Cancelled', 'cancelled'] },
+    };
+
     const [
       todayOrdersAgg,
       weekOrdersAgg,
@@ -122,17 +131,17 @@ class ReportService {
       prisma.orders.aggregate({
         _count: { id: true },
         _sum: { total_amount: true },
-        where: { created_at: { gte: today.start, lte: today.end }, status: { notIn: ['Cancelled', 'cancelled'] } },
+        where: { created_at: { gte: today.start, lte: today.end }, ...paidCondition },
       }),
       prisma.orders.aggregate({
         _count: { id: true },
         _sum: { total_amount: true },
-        where: { created_at: { gte: week.start, lte: week.end }, status: { notIn: ['Cancelled', 'cancelled'] } },
+        where: { created_at: { gte: week.start, lte: week.end }, ...paidCondition },
       }),
       prisma.orders.aggregate({
         _count: { id: true },
         _sum: { total_amount: true },
-        where: { created_at: { gte: month.start, lte: month.end }, status: { notIn: ['Cancelled', 'cancelled'] } },
+        where: { created_at: { gte: month.start, lte: month.end }, ...paidCondition },
       }),
     ]);
 
@@ -426,6 +435,7 @@ class ReportService {
       _count: { id: true },
       where: {
         created_at: { gte: start, lte: end },
+        payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
         status: { notIn: ['Cancelled', 'cancelled'] },
       },
     });

@@ -79,21 +79,23 @@ class DashboardService {
       unavailableFoods,
       unavailableCombos,
     ] = await Promise.all([
-      // 1. Today's Revenue (Calculated ONLY for Accepted orders)
+      // 1. Today's Revenue (Calculated ONLY for Confirmed Paid orders - pending excluded)
       prisma.orders.aggregate({
         _sum: { total_amount: true },
         where: {
           created_at: { gte: todayStart, lte: todayEnd },
-          status: { in: ['Accepted', 'accepted'] },
+          payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+          status: { notIn: ['Cancelled', 'cancelled'] },
         },
       }),
 
-      // 2. Yesterday's Revenue
+      // 2. Yesterday's Revenue (Calculated ONLY for Confirmed Paid orders)
       prisma.orders.aggregate({
         _sum: { total_amount: true },
         where: {
           created_at: { gte: yesterdayStart, lte: yesterdayEnd },
-          status: { in: ['Accepted', 'accepted'] },
+          payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+          status: { notIn: ['Cancelled', 'cancelled'] },
         },
       }),
 
@@ -114,14 +116,15 @@ class DashboardService {
         where: { created_at: { gte: todayStart, lte: todayEnd } },
       }),
 
-      // 6. Monthly Summary (Revenue, Orders, AOV calculated for Accepted orders)
+      // 6. Monthly Summary (Revenue, Orders, AOV calculated ONLY for Paid orders)
       prisma.orders.aggregate({
         _sum: { total_amount: true },
         _count: { id: true },
         _avg: { total_amount: true },
         where: {
           created_at: { gte: monthStart, lte: todayEnd },
-          status: { in: ['Accepted', 'accepted'] },
+          payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+          status: { notIn: ['Cancelled', 'cancelled'] },
         },
       }),
 
@@ -144,11 +147,12 @@ class DashboardService {
         where: dateRangeWhere,
       }),
 
-      // 10. Payments by Method / Gateway
+      // 10. Payments by Method / Gateway (Only Confirmed Paid payments)
       prisma.payments.groupBy({
         by: ['payment_gateway'],
         _sum: { amount: true },
         _count: { id: true },
+        where: { status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] } },
       }),
 
       // 11. Payments by Status
@@ -158,20 +162,32 @@ class DashboardService {
         _count: { id: true },
       }),
 
-      // 12. Top 10 Selling Food Items
+      // 12. Top 10 Selling Food Items (from Paid orders)
       prisma.order_items.groupBy({
         by: ['food_item_id'],
         _sum: { quantity: true, line_total: true },
-        where: { food_item_id: { not: null } },
+        where: {
+          food_item_id: { not: null },
+          orders: {
+            payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+            status: { notIn: ['Cancelled', 'cancelled'] },
+          },
+        },
         orderBy: { _sum: { quantity: 'desc' } },
         take: 10,
       }),
 
-      // 13. Top 10 Selling Combos
+      // 13. Top 10 Selling Combos (from Paid orders)
       prisma.order_items.groupBy({
         by: ['combo_id'],
         _sum: { quantity: true, line_total: true },
-        where: { combo_id: { not: null } },
+        where: {
+          combo_id: { not: null },
+          orders: {
+            payment_status: { in: ['Paid', 'paid', 'Completed', 'completed', 'Success', 'success'] },
+            status: { notIn: ['Cancelled', 'cancelled'] },
+          },
+        },
         orderBy: { _sum: { quantity: 'desc' } },
         take: 10,
       }),

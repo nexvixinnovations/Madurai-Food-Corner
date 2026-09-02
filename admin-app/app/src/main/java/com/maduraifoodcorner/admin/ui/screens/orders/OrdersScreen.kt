@@ -368,8 +368,12 @@ fun OrdersScreen(
                                     }
                                 }
                             }
-                        } else {
-                            val totalAmountSum = filteredOrders.sumOf { it.total_amount }
+                            // Total amount calculated ONLY for Confirmed Paid orders (pending payments excluded)
+                            val totalAmountSum = filteredOrders.filter {
+                                it.payment_status.equals("paid", ignoreCase = true) ||
+                                it.payment_status.equals("completed", ignoreCase = true) ||
+                                it.payment_status.equals("success", ignoreCase = true)
+                            }.sumOf { it.total_amount }
 
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
