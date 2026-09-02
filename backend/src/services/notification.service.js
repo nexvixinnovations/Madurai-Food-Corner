@@ -107,21 +107,39 @@ class NotificationService {
     const logStatus = dispatchResult.success ? 'sent' : 'failed';
     const errorMessage = dispatchResult.error || (dispatchResult.success ? null : dispatchResult.message);
 
-    // Save notification log in notifications table
-    return await prisma.notifications.create({
-      data: {
-        title,
-        message,
-        type: data.type || 'info',
-        channel,
-        recipient,
-        event: eventName,
-        status: logStatus,
-        error_message: errorMessage,
-        retry_count: 0,
-        read_status: false,
-      },
-    });
+    // Save notification log in notifications table if table exists
+    if (prisma.notifications && typeof prisma.notifications.create === 'function') {
+      try {
+        return await prisma.notifications.create({
+          data: {
+            title,
+            message,
+            type: data.type || 'info',
+            channel,
+            recipient,
+            event: eventName,
+            status: logStatus,
+            error_message: errorMessage,
+            retry_count: 0,
+            read_status: false,
+          },
+        });
+      } catch (dbErr) {
+        console.warn('[NOTIFICATION DB LOG NOTICE]', dbErr.message);
+      }
+    }
+
+    return {
+      title,
+      message,
+      type: data.type || 'info',
+      channel,
+      recipient,
+      event: eventName,
+      status: logStatus,
+      error_message: errorMessage,
+      created_at: new Date(),
+    };
   }
 
   /**

@@ -127,9 +127,77 @@ class PaymentService {
   }
 
   /**
+   * Helper to normalize payment method string
+   */
+  normalizePaymentMethod(method) {
+    if (!method || typeof method !== 'string') return 'Online';
+    const m = method.trim().toLowerCase();
+    if (m.includes('cash')) return 'Cash';
+    if (m.includes('upi') || m.includes('gpay') || m.includes('phonepe') || m.includes('paytm') || m.includes('bhim')) return 'UPI';
+    if (m.includes('card') || m.includes('visa') || m.includes('master') || m.includes('rupay') || m.includes('credit') || m.includes('debit')) return 'Card';
+    return 'Online';
+  }
+
+  /**
+   * Dispatches automated order and payment notifications to the customer
+   */
+  async dispatchPaymentNotification(order, payment) {
+    if (!order) return;
+    try {
+      const notificationService = require('./notification.service');
+      const customerName = order.customers?.name || 'Valued Customer';
+      const customerEmail = order.customers?.email;
+      const customerPhone = order.customers?.phone;
+      const orderNumber = order.order_number;
+      const totalAmount = order.total_amount;
+      const paymentMethod = payment?.payment_gateway || payment?.payment_method || order.payment_method || 'Online';
+      const transactionId = payment?.transaction_id || 'N/A';
+
+      // 1. Send Email Notification if customer has an email address
+      if (customerEmail && customerEmail.includes('@')) {
+        await notificationService.sendNotification({
+          channel: 'email',
+          recipient: customerEmail,
+          template: 'payment_success',
+          variables: {
+            customerName,
+            orderNumber,
+            amount: totalAmount,
+            paymentMethod,
+            transactionId,
+          },
+          event: 'payment_success',
+        }).catch((e) => console.warn('[NOTIFICATION DISPATCH EMAIL WARNING]', e.message));
+      }
+
+      // 2. Send WhatsApp Notification if customer has a valid mobile number
+      if (customerPhone && customerPhone.replace(/\D/g, '').length >= 10) {
+        await notificationService.sendNotification({
+          channel: 'whatsapp',
+          recipient: customerPhone,
+          template: 'payment_success',
+          variables: {
+            customerName,
+            orderNumber,
+            amount: totalAmount,
+            paymentMethod,
+            transactionId,
+          },
+          event: 'payment_success',
+        }).catch((e) => console.warn('[NOTIFICATION DISPATCH WHATSAPP WARNING]', e.message));
+      }
+    } catch (err) {
+      console.warn('[NOTIFICATION DISPATCH ERROR]', err.message);
+    }
+  }
+
+  /**
    * Create payment record and automatically update linked order's payment & order status
    */
   async createPayment(data) {
+    if (data.payment_method) {
+      data.payment_method = this.normalizePaymentMethod(data.payment_method);
+    }
     validateCreatePayment(data);
 
     // Verify order exists
@@ -144,7 +212,7 @@ class PaymentService {
     const transactionId = data.transaction_id ? data.transaction_id.trim() : null;
     const paidAt = data.paid_at ? new Date(data.paid_at) : new Date();
 
-    return await prisma.$transaction(async (tx) => {
+    const resultPayment = await prisma.$transaction(async (tx) => {
       // Idempotency check: if a payment with this transaction_id already exists, update and return it without creating duplicates
       if (transactionId) {
         const existingPayment = await tx.payments.findFirst({
@@ -229,6 +297,13 @@ class PaymentService {
         },
       });
     });
+
+    // Auto Dispatch Customer Notification when payment is successfully Paid
+    if (paymentStatus.toLowerCase() === 'paid' && resultPayment?.orders) {
+      this.dispatchPaymentNotification(resultPayment.orders, resultPayment);
+    }
+
+    return resultPayment;
   }
 
   /**
@@ -242,7 +317,7 @@ class PaymentService {
     const orderId = existingPayment.order_id;
     const order = existingPayment.orders;
 
-    return await prisma.$transaction(async (tx) => {
+    const resultPayment = await prisma.$transaction(async (tx) => {
       // 1. Update Payment status
       const updatedPayment = await tx.payments.update({
         where: { id },
@@ -278,6 +353,13 @@ class PaymentService {
         },
       });
     });
+
+    // Auto Dispatch Customer Notification when status becomes Paid
+    if (formattedStatus.toLowerCase() === 'paid' && resultPayment?.orders) {
+      this.dispatchPaymentNotification(resultPayment.orders, resultPayment);
+    }
+
+    return resultPayment;
   }
 
   /**

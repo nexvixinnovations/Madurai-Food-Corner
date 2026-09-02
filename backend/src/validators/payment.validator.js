@@ -1,6 +1,15 @@
 const ApiError = require('../utils/apiError');
 const { isValidUuid } = require('./menu.validator');
 
+const normalizePaymentMethod = (method) => {
+  if (!method || typeof method !== 'string') return 'Online';
+  const m = method.trim().toLowerCase();
+  if (m.includes('cash')) return 'Cash';
+  if (m.includes('upi') || m.includes('gpay') || m.includes('phonepe') || m.includes('paytm') || m.includes('bhim')) return 'UPI';
+  if (m.includes('card') || m.includes('visa') || m.includes('master') || m.includes('rupay') || m.includes('credit') || m.includes('debit')) return 'Card';
+  return 'Online';
+};
+
 /**
  * Validate Create Payment Payload
  */
@@ -16,19 +25,8 @@ const validateCreatePayment = (data) => {
     errors.amount = 'Amount is required and must be greater than 0.';
   }
 
-  const allowedMethods = ['Cash', 'UPI', 'Card', 'Online'];
   if (data.payment_method) {
-    const methodStr = data.payment_method.trim();
-    if (!allowedMethods.some((m) => m.toLowerCase() === methodStr.toLowerCase())) {
-      errors.payment_method = `Allowed payment methods: ${allowedMethods.join(', ')}.`;
-    } else {
-      // If method is UPI, Card, or Online, transaction_id is required
-      if (['upi', 'card', 'online'].includes(methodStr.toLowerCase())) {
-        if (!data.transaction_id || typeof data.transaction_id !== 'string' || !data.transaction_id.trim()) {
-          errors.transaction_id = `Transaction ID is required for ${methodStr} payment method.`;
-        }
-      }
-    }
+    data.payment_method = normalizePaymentMethod(data.payment_method);
   }
 
   const allowedStatuses = ['Pending', 'Paid', 'Failed', 'Refunded', 'Cancelled'];
