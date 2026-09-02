@@ -367,66 +367,11 @@ fun OrdersScreen(
                                         }
                                     }
                                 }
-                            }
-                            // Total amount calculated ONLY for Confirmed Paid orders (pending payments excluded)
-                            val totalAmountSum = filteredOrders.filter {
-                                it.payment_status.equals("paid", ignoreCase = true) ||
-                                it.payment_status.equals("completed", ignoreCase = true) ||
-                                it.payment_status.equals("success", ignoreCase = true)
-                            }.sumOf { it.total_amount }
-
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // Summary Header Card for Selected Date
-                                item {
-                                    Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E3A8A)),
-                                        shape = RoundedCornerShape(16.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 4.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .padding(16.dp)
-                                                .fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column {
-                                                Text(
-                                                    text = "$selectedTab on ${formatShortDate(selectedDateIso, todayIso, isoFormat)}",
-                                                    color = Color.White.copy(alpha = 0.85f),
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                                Text(
-                                                    text = "${filteredOrders.size} Confirmed ${if (filteredOrders.size == 1) "Order" else "Orders"}",
-                                                    color = Color.White,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text(
-                                                    text = "Total Amount",
-                                                    color = Color.White.copy(alpha = 0.85f),
-                                                    fontSize = 11.sp
-                                                )
-                                                Text(
-                                                    text = "₹${totalAmountSum.toInt()}",
-                                                    color = Color(0xFFFFD700),
-                                                    fontSize = 20.sp,
-                                                    fontWeight = FontWeight.ExtraBold
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
                                 items(filteredOrders) { order ->
                                     OrderItemCard(
                                         order = order,
@@ -492,23 +437,6 @@ private fun formatHeaderDate(
     }
 }
 
-private fun formatShortDate(
-    iso: String,
-    todayIso: String,
-    isoFormat: SimpleDateFormat
-): String {
-    return if (iso == todayIso) {
-        "Today"
-    } else {
-        try {
-            val date = isoFormat.parse(iso)
-            val format = SimpleDateFormat("dd MMM", Locale.US)
-            if (date != null) format.format(date) else iso
-        } catch (_: Exception) {
-            iso
-        }
-    }
-}
 
 @Composable
 fun OrderItemCard(
