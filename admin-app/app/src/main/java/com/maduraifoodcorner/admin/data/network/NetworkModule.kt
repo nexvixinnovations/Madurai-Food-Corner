@@ -54,6 +54,12 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideGson(): com.google.gson.Gson {
+        return com.google.gson.Gson()
+    }
+
+    @Provides
+    @Singleton
     fun provideAdminApiService(retrofit: Retrofit): AdminApiService {
         return retrofit.create(AdminApiService::class.java)
     }

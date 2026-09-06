@@ -8,6 +8,8 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import java.util.*
@@ -31,6 +33,7 @@ class BluetoothPrinterManager(private val context: Context) {
     private val prefs = PrinterPreferences(context)
     private var socket: BluetoothSocket? = null
     private var outputStream: OutputStream? = null
+    private val printMutex = Mutex()
 
     private val _printerState = MutableStateFlow(PrinterState.Disconnected)
     val printerState: StateFlow<PrinterState> = _printerState
@@ -59,6 +62,20 @@ class BluetoothPrinterManager(private val context: Context) {
         }
     }
 
+    private fun closeActiveSocket() {
+        try {
+            outputStream?.flush()
+        } catch (ignored: Exception) {}
+        try {
+            outputStream?.close()
+        } catch (ignored: Exception) {}
+        try {
+            socket?.close()
+        } catch (ignored: Exception) {}
+        outputStream = null
+        socket = null
+    }
+
     @SuppressLint("MissingPermission")
     suspend fun connectPrinter(macAddress: String): Boolean = withContext(Dispatchers.IO) {
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
@@ -71,23 +88,58 @@ class BluetoothPrinterManager(private val context: Context) {
             _printerState.value = PrinterState.Connecting
             _statusMessage.value = "Connecting to $macAddress..."
 
+            // Cancel discovery as it heavily degrades connection speed & causes RFCOMM timeout
+            try {
+                bluetoothAdapter.cancelDiscovery()
+            } catch (ignored: Exception) {}
+
+            closeActiveSocket()
+
             val device: BluetoothDevice = bluetoothAdapter.getRemoteDevice(macAddress)
-            val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SPP UUID
+            val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard SPP UUID
 
-            socket?.close()
-            socket = device.createRfcommSocketToServiceRecord(uuid)
-            socket?.connect()
-            outputStream = socket?.outputStream
+            var connectedSocket: BluetoothSocket? = null
 
-            prefs.setSelectedPrinterAddress(macAddress)
-            _printerState.value = PrinterState.Connected
-            _statusMessage.value = "Connected to ${try { device.name ?: macAddress } catch (e: Exception) { macAddress }}"
-            true
+            // Method 1: Standard RFCOMM SPP
+            try {
+                val s = device.createRfcommSocketToServiceRecord(uuid)
+                s.connect()
+                connectedSocket = s
+            } catch (e1: Exception) {
+                // Method 2: Insecure RFCOMM
+                try {
+                    val s = device.createInsecureRfcommSocketToServiceRecord(uuid)
+                    s.connect()
+                    connectedSocket = s
+                } catch (e2: Exception) {
+                    // Method 3: Reflection fallback (Channel 1)
+                    val method = device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                    val s = method.invoke(device, 1) as BluetoothSocket
+                    s.connect()
+                    connectedSocket = s
+                }
+            }
+
+            if (connectedSocket != null && connectedSocket.isConnected) {
+                socket = connectedSocket
+                outputStream = connectedSocket.outputStream
+                prefs.setSelectedPrinterAddress(macAddress)
+                _printerState.value = PrinterState.Connected
+                val deviceName = try { device.name ?: macAddress } catch (e: Exception) { macAddress }
+                _statusMessage.value = "Connected to $deviceName"
+                return@withContext true
+            } else {
+                _printerState.value = PrinterState.Failed
+                _statusMessage.value = "Could not establish socket connection"
+                return@withContext false
+            }
         } catch (e: SecurityException) {
+            closeActiveSocket()
             _printerState.value = PrinterState.Failed
             _statusMessage.value = "Bluetooth permission declined/denied"
             false
         } catch (e: Exception) {
+            closeActiveSocket()
             _printerState.value = PrinterState.Failed
             _statusMessage.value = "Connection failed: ${e.message}"
             false
@@ -95,48 +147,50 @@ class BluetoothPrinterManager(private val context: Context) {
     }
 
     suspend fun printReceiptText(receiptText: String): Boolean = withContext(Dispatchers.IO) {
-        val mac = prefs.getSelectedPrinterAddress()
-        if (socket == null || socket?.isConnected != true) {
-            if (mac != null) {
-                val reconnected = connectPrinter(mac)
-                if (!reconnected) return@withContext false
-            } else {
+        printMutex.withLock {
+            val mac = prefs.getSelectedPrinterAddress()
+            if (mac.isNullOrBlank()) {
                 _statusMessage.value = "No printer selected"
                 return@withContext false
             }
-        }
 
-        try {
-            _printerState.value = PrinterState.Printing
-            _statusMessage.value = "Printing receipt..."
+            // If socket is disconnected, connect
+            if (socket == null || socket?.isConnected != true) {
+                val reconnected = connectPrinter(mac)
+                if (!reconnected) return@withContext false
+            }
 
-            val os = outputStream ?: throw Exception("Output stream is null")
-            
-            // ESC/POS Reset & Init command: 0x1B 0x40
-            os.write(byteArrayOf(0x1B, 0x40))
+            try {
+                _printerState.value = PrinterState.Printing
+                _statusMessage.value = "Printing receipt..."
 
-            // Write receipt text bytes
-            os.write(receiptText.toByteArray(Charsets.UTF_8))
+                val os = outputStream ?: throw Exception("Output stream is null")
 
-            // ESC/POS Cut paper / feed command
-            os.write(byteArrayOf(0x1D, 0x56, 0x42, 0x00))
-            os.flush()
+                // ESC/POS Reset & Init command: 0x1B 0x40
+                os.write(byteArrayOf(0x1B, 0x40))
 
-            _printerState.value = PrinterState.Connected
-            _statusMessage.value = "Printing Completed Successfully"
-            true
-        } catch (e: Exception) {
-            _printerState.value = PrinterState.Failed
-            _statusMessage.value = "Print failed: ${e.message}"
-            false
+                // Write receipt text bytes
+                os.write(receiptText.toByteArray(Charsets.UTF_8))
+
+                // ESC/POS Cut paper / feed command
+                os.write(byteArrayOf(0x1D, 0x56, 0x42, 0x00))
+                os.flush()
+
+                _printerState.value = PrinterState.Connected
+                _statusMessage.value = "Printing Completed Successfully"
+                true
+            } catch (e: Exception) {
+                // If write fails, close socket so next attempt performs a fresh clean reconnection
+                closeActiveSocket()
+                _printerState.value = PrinterState.Failed
+                _statusMessage.value = "Print failed: ${e.message}"
+                false
+            }
         }
     }
 
     fun disconnect() {
-        try {
-            outputStream?.close()
-            socket?.close()
-        } catch (ignored: Exception) {}
+        closeActiveSocket()
         _printerState.value = PrinterState.Disconnected
         _statusMessage.value = "Disconnected"
     }

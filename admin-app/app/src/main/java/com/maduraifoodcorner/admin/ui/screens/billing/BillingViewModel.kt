@@ -3,13 +3,18 @@ package com.maduraifoodcorner.admin.ui.screens.billing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maduraifoodcorner.admin.data.model.*
+import com.maduraifoodcorner.admin.data.offline.OfflineBillingManager
+import com.maduraifoodcorner.admin.data.offline.OfflineOrder
+import com.maduraifoodcorner.admin.data.offline.SyncResult
 import com.maduraifoodcorner.admin.data.repository.AdminRepository
+import com.maduraifoodcorner.admin.data.repository.PrintRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 data class PosCatalogItem(
@@ -49,14 +54,17 @@ sealed class BillingState {
     data class Success(
         val catalogItems: List<PosCatalogItem>,
         val categories: List<String>,
-        val pendingWebsiteOrders: List<Order>
+        val pendingWebsiteOrders: List<Order>,
+        val isOffline: Boolean = false
     ) : BillingState()
     data class Error(val message: String) : BillingState()
 }
 
 @HiltViewModel
 class BillingViewModel @Inject constructor(
-    private val repository: AdminRepository
+    private val repository: AdminRepository,
+    private val offlineBillingManager: OfflineBillingManager,
+    private val printRepository: PrintRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<BillingState>(BillingState.Loading)
@@ -68,8 +76,20 @@ class BillingViewModel @Inject constructor(
     private val _settings = MutableStateFlow<RestaurantSettings?>(null)
     val settings: StateFlow<RestaurantSettings?> = _settings.asStateFlow()
 
-    private val _isSubmittingOrder = MutableStateFlow(false)
-    val isSubmittingOrder: StateFlow<Boolean> = _isSubmittingOrder.asStateFlow()
+    val unsyncedOrders: StateFlow<List<OfflineOrder>> = offlineBillingManager.unsyncedOrders
+    val isSyncing: StateFlow<Boolean> = offlineBillingManager.isSyncing
+
+    private val _syncProgress = MutableStateFlow<Pair<Int, Int>?>(null)
+    val syncProgress: StateFlow<Pair<Int, Int>?> = _syncProgress.asStateFlow()
+
+    private val _lastSyncResult = MutableStateFlow<SyncResult?>(null)
+    val lastSyncResult: StateFlow<SyncResult?> = _lastSyncResult.asStateFlow()
+
+    private val _showRevenueDialog = MutableStateFlow(false)
+    val showRevenueDialog: StateFlow<Boolean> = _showRevenueDialog.asStateFlow()
+
+    private val _isOfflineMode = MutableStateFlow(false)
+    val isOfflineMode: StateFlow<Boolean> = _isOfflineMode.asStateFlow()
 
     /**
      * Live discount breakdown computed from cart + settings.
@@ -120,81 +140,119 @@ class BillingViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = BillingState.Loading
 
-            repository.getSettings().onSuccess { s -> _settings.value = s }
+            try {
+                val settingsResult = repository.getSettings()
+                settingsResult.onSuccess { s -> _settings.value = s }
 
-            val foodsResult = repository.getFoods()
-            val combosResult = repository.getCombos()
-            val offersResult = repository.getOffers()
-            val ordersResult = repository.getOrders(status = "Pending")
+                val foodsResult = repository.getFoods()
+                val combosResult = repository.getCombos()
+                val offersResult = repository.getOffers()
+                val ordersResult = repository.getOrders(status = "Pending")
 
-            val allCatalogItems = mutableListOf<PosCatalogItem>()
-            val categorySet = mutableSetOf<String>("All", "Combos", "Offers")
+                if (foodsResult.isSuccess || combosResult.isSuccess || offersResult.isSuccess) {
+                    val foods = foodsResult.getOrDefault(emptyList())
+                    val combos = combosResult.getOrDefault(emptyList())
+                    val offers = offersResult.getOrDefault(emptyList())
+                    val pendingOrders = ordersResult.getOrDefault(emptyList())
 
-            foodsResult.onSuccess { foods ->
-                foods.forEach { food ->
-                    val cat = food.category.ifBlank { "General" }
-                    categorySet.add(cat)
-                    allCatalogItems.add(
-                        PosCatalogItem(
-                            id = food.id,
-                            name = food.name,
-                            category = cat,
-                            itemType = "food",
-                            price = food.price,
-                            offerPrice = if (food.offer_enabled && food.offer_price != null && food.offer_price > 0) food.offer_price else null,
-                            isAvailable = food.available,
-                            originalFood = food
-                        )
+                    // Cache for future offline usage
+                    offlineBillingManager.saveCatalogCache(foods, combos, offers, _settings.value)
+                    _isOfflineMode.value = false
+
+                    val catalogItems = buildCatalogItems(foods, combos, offers)
+                    val categories = buildCategories(foods)
+
+                    _uiState.value = BillingState.Success(
+                        catalogItems = catalogItems,
+                        categories = categories,
+                        pendingWebsiteOrders = pendingOrders,
+                        isOffline = false
                     )
+                    return@launch
                 }
+            } catch (e: Exception) {
+                // Ignore network error and fall back to local offline cache
             }
 
-            combosResult.onSuccess { combos ->
-                combos.forEach { combo ->
-                    allCatalogItems.add(
-                        PosCatalogItem(
-                            id = combo.id,
-                            name = combo.name,
-                            category = "Combos",
-                            itemType = "combo",
-                            price = combo.price,
-                            offerPrice = if (combo.offer_enabled && combo.offer_price != null && combo.offer_price > 0) combo.offer_price else null,
-                            isAvailable = combo.available,
-                            originalCombo = combo
-                        )
-                    )
-                }
-            }
+            // Fallback to local offline cached catalog
+            val cache = offlineBillingManager.getCachedCatalog()
+            if (cache != null && (cache.foods.isNotEmpty() || cache.combos.isNotEmpty() || cache.offers.isNotEmpty())) {
+                _settings.value = cache.settings
+                _isOfflineMode.value = true
+                val catalogItems = buildCatalogItems(cache.foods, cache.combos, cache.offers)
+                val categories = buildCategories(cache.foods)
 
-            offersResult.onSuccess { offers ->
-                offers.forEach { offer ->
-                    allCatalogItems.add(
-                        PosCatalogItem(
-                            id = offer.id,
-                            name = offer.title,
-                            category = "Offers",
-                            itemType = "offer",
-                            price = offer.price ?: offer.offer_price ?: 0.0,
-                            offerPrice = offer.offer_price,
-                            isAvailable = offer.available,
-                            originalOffer = offer
-                        )
-                    )
-                }
-            }
-
-            val pendingOrders = ordersResult.getOrDefault(emptyList())
-
-            if (allCatalogItems.isNotEmpty()) {
                 _uiState.value = BillingState.Success(
-                    catalogItems = allCatalogItems,
-                    categories = categorySet.toList(),
-                    pendingWebsiteOrders = pendingOrders
+                    catalogItems = catalogItems,
+                    categories = categories,
+                    pendingWebsiteOrders = emptyList(),
+                    isOffline = true
                 )
             } else {
-                _uiState.value = BillingState.Error("Failed to load catalog items for POS billing")
+                _uiState.value = BillingState.Error("No catalog data available. Please connect to internet once to load items.")
             }
         }
+    }
+
+    private fun buildCatalogItems(foods: List<FoodItem>, combos: List<Combo>, offers: List<Offer>): List<PosCatalogItem> {
+        val allCatalogItems = mutableListOf<PosCatalogItem>()
+
+        foods.forEach { food ->
+            val cat = food.category.ifBlank { "General" }
+            allCatalogItems.add(
+                PosCatalogItem(
+                    id = food.id,
+                    name = food.name,
+                    category = cat,
+                    itemType = "food",
+                    price = food.price,
+                    offerPrice = if (food.offer_enabled && food.offer_price != null && food.offer_price > 0) food.offer_price else null,
+                    isAvailable = food.available,
+                    originalFood = food
+                )
+            )
+        }
+
+        combos.forEach { combo ->
+            allCatalogItems.add(
+                PosCatalogItem(
+                    id = combo.id,
+                    name = combo.name,
+                    category = "Combos",
+                    itemType = "combo",
+                    price = combo.price,
+                    offerPrice = if (combo.offer_enabled && combo.offer_price != null && combo.offer_price > 0) combo.offer_price else null,
+                    isAvailable = combo.available,
+                    originalCombo = combo
+                )
+            )
+        }
+
+        offers.forEach { offer ->
+            allCatalogItems.add(
+                PosCatalogItem(
+                    id = offer.id,
+                    name = offer.title,
+                    category = "Offers",
+                    itemType = "offer",
+                    price = offer.price ?: offer.offer_price ?: 0.0,
+                    offerPrice = offer.offer_price,
+                    isAvailable = offer.available,
+                    originalOffer = offer
+                )
+            )
+        }
+
+        return allCatalogItems
+    }
+
+    private fun buildCategories(foods: List<FoodItem>): List<String> {
+        val categorySet = mutableSetOf("All", "Combos", "Offers")
+        foods.forEach { food ->
+            val cat = food.category.ifBlank { "General" }
+            categorySet.add(cat)
+        }
+        return categorySet.toList()
     }
 
     fun addItemToCart(catalogItem: PosCatalogItem) {
@@ -242,7 +300,14 @@ class BillingViewModel @Inject constructor(
         _cartItems.value = emptyList()
     }
 
-    fun generatePosOrder(
+    /**
+     * Completes order INSTANTLY without waiting for the internet.
+     * 1. Generates local sequential order & calculated totals.
+     * 2. Queues into offline storage.
+     * 3. Triggers printer asynchronously via Singleton PrintRepository.
+     * 4. Clears cart immediately for next customer.
+     */
+    fun completePosOrderOffline(
         orderType: String = "Shop",
         paymentMethod: String = "Cash",
         customerName: String = "",
@@ -256,17 +321,54 @@ class BillingViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            _isSubmittingOrder.value = true
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        try {
+            val breakdown = discountBreakdown.value
+            val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+            val orderNumber = offlineBillingManager.getNextOrderNumber()
 
-            val itemRequests = cart.map { lineItem ->
+            val orderItems = cart.map { line ->
+                OrderItem(
+                    id = UUID.randomUUID().toString(),
+                    food_item_id = if (line.item.itemType == "food") line.item.id else null,
+                    combo_id = if (line.item.itemType == "combo") line.item.id else null,
+                    quantity = line.quantity,
+                    unit_price = line.unitPrice,
+                    line_total = line.lineTotal,
+                    food_items = line.item.originalFood ?: FoodItem(id = line.item.id, name = line.item.name, price = line.unitPrice),
+                    combos = line.item.originalCombo
+                )
+            }
+
+            val rawSubtotal = breakdown.eligibleSubtotal + breakdown.specialOfferSubtotal
+
+            val localOrder = Order(
+                id = UUID.randomUUID().toString(),
+                order_number = orderNumber,
+                order_source = "POS Counter",
+                required_date = todayDate,
+                required_time = timeStr,
+                order_type = orderType,
+                payment_method = paymentMethod,
+                payment_status = "Completed",
+                status = "Completed",
+                subtotal = rawSubtotal,
+                discount_percentage = if (breakdown.discountPercent > 0) breakdown.discountPercent else null,
+                discount_amount = if (breakdown.discountAmount > 0) breakdown.discountAmount else null,
+                total_amount = breakdown.grandTotal,
+                customers = Customer(
+                    name = if (customerName.isNotBlank()) customerName.trim() else "Walk-in Customer",
+                    phone = if (customerPhone.isNotBlank()) customerPhone.trim() else "0000000000"
+                ),
+                order_items = orderItems
+            )
+
+            val itemRequests = cart.map { line ->
                 CreateOrderItemRequest(
-                    type = lineItem.item.itemType,
-                    id = lineItem.item.id,
-                    quantity = lineItem.quantity,
-                    unit_price = lineItem.unitPrice
+                    type = line.item.itemType,
+                    id = line.item.id,
+                    quantity = line.quantity,
+                    unit_price = line.unitPrice
                 )
             }
 
@@ -275,7 +377,7 @@ class BillingViewModel @Inject constructor(
                     name = if (customerName.isNotBlank()) customerName.trim() else "Walk-in Customer",
                     phone = if (customerPhone.isNotBlank()) customerPhone.trim() else "0000000000"
                 ),
-                required_date = todayStr,
+                required_date = todayDate,
                 required_time = timeStr,
                 order_type = orderType,
                 payment_method = paymentMethod,
@@ -285,17 +387,46 @@ class BillingViewModel @Inject constructor(
                 items = itemRequests
             )
 
-            val result = repository.createPosOrder(posOrderReq)
-            _isSubmittingOrder.value = false
+            // Save to offline persistent queue
+            offlineBillingManager.saveOfflineOrder(localOrder, posOrderReq)
 
-            result.onSuccess { createdOrder ->
-                clearCart()
-                loadData()
-                onSuccess(createdOrder)
-            }.onFailure { err ->
-                onError(err.message ?: "Failed to generate POS order")
+            // Trigger thermal printer print asynchronously
+            viewModelScope.launch {
+                try {
+                    printRepository.printOrderReceipt(localOrder)
+                } catch (ignored: Exception) {}
             }
+
+            // Clear cart instantly
+            clearCart()
+
+            onSuccess(localOrder)
+        } catch (e: Exception) {
+            onError(e.message ?: "Failed to complete POS order")
         }
+    }
+
+    /**
+     * Batch uploads all offline queued orders to the data server.
+     */
+    fun syncAllOrdersToServer(onComplete: (SyncResult) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = offlineBillingManager.syncAllOrdersToServer { current, total ->
+                _syncProgress.value = Pair(current, total)
+            }
+            _syncProgress.value = null
+            _lastSyncResult.value = result
+            _showRevenueDialog.value = true
+            onComplete(result)
+        }
+    }
+
+    fun dismissRevenueDialog() {
+        _showRevenueDialog.value = false
+    }
+
+    fun deleteOfflineOrder(localId: String) {
+        offlineBillingManager.removeSingleOfflineOrder(localId)
     }
 
     fun loadWebsiteOrderToCart(order: Order) {

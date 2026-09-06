@@ -2,7 +2,6 @@ package com.maduraifoodcorner.admin.ui.screens.billing
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,19 +17,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.maduraifoodcorner.admin.data.model.Order
-import com.maduraifoodcorner.admin.data.printer.BluetoothPrinterManager
-import com.maduraifoodcorner.admin.data.repository.PrintRepository
 import com.maduraifoodcorner.admin.ui.components.LoadingState
-import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,28 +39,54 @@ fun BillingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
-    val settings by viewModel.settings.collectAsState()
-    val isSubmitting by viewModel.isSubmittingOrder.collectAsState()
     val discountBreakdown by viewModel.discountBreakdown.collectAsState()
+    val unsyncedOrders by viewModel.unsyncedOrders.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val syncProgress by viewModel.syncProgress.collectAsState()
+    val lastSyncResult by viewModel.lastSyncResult.collectAsState()
+    val showRevenueDialog by viewModel.showRevenueDialog.collectAsState()
+    val isOfflineMode by viewModel.isOfflineMode.collectAsState()
+
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     var selectedCategory by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
     var showOrderPickerSheet by remember { mutableStateOf(false) }
+    var showQueueSheet by remember { mutableStateOf(false) }
 
-    // Use the live discount breakdown from ViewModel (offer-aware)
     val eligibleSubtotal = discountBreakdown.eligibleSubtotal
     val specialOfferSubtotal = discountBreakdown.specialOfferSubtotal
     val discountPct = discountBreakdown.discountPercent.toInt()
     val discountAmt = discountBreakdown.discountAmount
     val grandTotal = discountBreakdown.grandTotal
-    val subtotal = discountBreakdown.eligibleSubtotal + discountBreakdown.specialOfferSubtotal
+
+    val pendingTotalRevenue = unsyncedOrders.sumOf { it.order.total_amount }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Counter POS Billing", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Counter POS Billing", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            if (isOfflineMode) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    color = Color(0xFFFFF3E0),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "OFFLINE",
+                                        color = Color(0xFFE65100),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Drawer")
@@ -73,7 +97,7 @@ fun BillingScreen(
                         Icon(Icons.Default.CloudDownload, contentDescription = "Load Website Orders")
                     }
                     IconButton(onClick = { viewModel.loadData() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Catalog")
                     }
                 }
             )
@@ -84,13 +108,97 @@ fun BillingScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
+            // ─── Offline Queue & Server Sync Banner ────────────────────────
+            Surface(
+                color = if (unsyncedOrders.isNotEmpty()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { if (unsyncedOrders.isNotEmpty()) showQueueSheet = true }
+                    ) {
+                        Icon(
+                            imageVector = if (unsyncedOrders.isNotEmpty()) Icons.Default.Inventory else Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = if (unsyncedOrders.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF2E7D32),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            if (unsyncedOrders.isNotEmpty()) {
+                                Text(
+                                    text = "${unsyncedOrders.size} Offline Orders Pending",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Queue Total: ₹${"%.0f".format(pendingTotalRevenue)} (Tap to view)",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            } else {
+                                Text(
+                                    text = "All Orders Synced to Server",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF2E7D32)
+                                )
+                                Text(
+                                    text = "Ready for instant offline billing",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+
+                    // Sync to Data Server Button
+                    Button(
+                        onClick = {
+                            if (unsyncedOrders.isEmpty()) {
+                                Toast.makeText(context, "No offline orders to sync!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.syncAllOrdersToServer()
+                            }
+                        },
+                        enabled = unsyncedOrders.isNotEmpty() && !isSyncing,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Syncing...", fontSize = 11.sp)
+                        } else {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Upload to Server", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // ─── Main Billing Body ──────────────────────────────────────────
             when (val state = uiState) {
-                is BillingState.Idle, is BillingState.Loading -> LoadingState("Loading POS Catalog & Orders...")
+                is BillingState.Idle, is BillingState.Loading -> LoadingState("Loading POS Catalog...")
                 is BillingState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = state.message, color = MaterialTheme.colorScheme.error)
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                            Text(text = state.message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                            Spacer(modifier = Modifier.height(12.dp))
                             Button(onClick = { viewModel.loadData() }) {
                                 Text("Retry")
                             }
@@ -223,7 +331,7 @@ fun BillingScreen(
                                 }
                             }
 
-                            Divider(modifier = Modifier.fillMaxHeight().width(1.dp))
+                            VerticalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
 
                             // Right Section: Current Cart Summary
                             Column(
@@ -299,7 +407,7 @@ fun BillingScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // ─── Order Value Discount Breakdown ──────────────────
+                                // ─── Pricing & Complete Bill Action ──────────────────
                                 Surface(
                                     color = MaterialTheme.colorScheme.surface,
                                     shape = RoundedCornerShape(12.dp),
@@ -307,7 +415,6 @@ fun BillingScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        // Eligible items line (food + combo)
                                         if (eligibleSubtotal > 0) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -318,7 +425,6 @@ fun BillingScreen(
                                             }
                                         }
 
-                                        // Special offer items line (if any)
                                         if (specialOfferSubtotal > 0) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -329,9 +435,8 @@ fun BillingScreen(
                                             }
                                         }
 
-                                        // Discount line (only shown when applicable)
                                         if (discountPct > 0 && discountAmt > 0) {
-                                            Divider(modifier = Modifier.padding(vertical = 2.dp))
+                                            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 verticalAlignment = Alignment.CenterVertically
@@ -339,13 +444,9 @@ fun BillingScreen(
                                                 Text("Order Discount ($discountPct%):", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                                 Text("-₹${"%.2f".format(discountAmt)}", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF2E7D32))
                                             }
-                                            Text(
-                                                text = "Applies to Regular & Combo items only. Special Offers excluded.",
-                                                fontSize = 9.sp, color = Color.Gray
-                                            )
                                         }
 
-                                        Divider(modifier = Modifier.padding(vertical = 2.dp))
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
 
                                         // Grand Total
                                         Row(
@@ -358,37 +459,25 @@ fun BillingScreen(
 
                                         Spacer(modifier = Modifier.height(6.dp))
 
+                                        // Instant Offline Bill & Print
                                         Button(
                                             onClick = {
-                                                viewModel.generatePosOrder(
+                                                viewModel.completePosOrderOffline(
                                                     onSuccess = { createdOrder ->
-                                                        Toast.makeText(context, "Order #${createdOrder.order_number} Saved & Printed!", Toast.LENGTH_LONG).show()
-                                                        // Automatically trigger thermal printer receipt upon submission
-                                                        scope.launch {
-                                                            try {
-                                                                val printRepo = PrintRepository(BluetoothPrinterManager(context))
-                                                                printRepo.printOrderReceipt(createdOrder)
-                                                            } catch (e: Exception) {
-                                                                // Silent catch so print issues don't crash UI
-                                                            }
-                                                        }
+                                                        Toast.makeText(context, "Bill #${createdOrder.order_number} Saved & Printing!", Toast.LENGTH_SHORT).show()
                                                     },
                                                     onError = { err ->
                                                         Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
                                                     }
                                                 )
                                             },
-                                            enabled = cartItems.isNotEmpty() && !isSubmitting,
+                                            enabled = cartItems.isNotEmpty(),
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            if (isSubmitting) {
-                                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White)
-                                            } else {
-                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Submit POS Order", fontSize = 11.sp)
-                                            }
+                                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Complete & Print Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -399,19 +488,246 @@ fun BillingScreen(
             }
         }
 
-        if (showOrderPickerSheet && uiState is BillingState.Success) {
-            val pendingOrders = (uiState as BillingState.Success).pendingWebsiteOrders
+        // ─── Syncing Progress Dialog ────────────────────────────────────────
+        if (isSyncing && syncProgress != null) {
+            Dialog(onDismissRequest = { /* Prevent dismiss while syncing */ }) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(40.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Uploading Orders to Server...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val (current, total) = syncProgress!!
+                        Text(
+                            text = "Syncing bill $current of $total",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { current.toFloat() / total.toFloat() },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
+        // ─── Revenue & Sync Summary Dialog ──────────────────────────────────
+        if (showRevenueDialog && lastSyncResult != null) {
+            val result = lastSyncResult!!
+            val syncTime = SimpleDateFormat("hh:mm a, dd MMM yyyy", Locale.getDefault()).format(Date())
+
             AlertDialog(
-                onDismissRequest = { showOrderPickerSheet = false },
-                title = { Text("Load Website Orders", fontWeight = FontWeight.Bold) },
+                onDismissRequest = { viewModel.dismissRevenueDialog() },
+                icon = {
+                    Icon(
+                        imageVector = if (result.failedCount == 0) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = if (result.failedCount == 0) Color(0xFF2E7D32) else Color(0xFFE65100),
+                        modifier = Modifier.size(36.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Orders Synced & Revenue Summary",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                },
                 text = {
-                    if (pendingOrders.isEmpty()) {
-                        Text("No pending website orders found to load.")
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Synced at: $syncTime",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+
+                        HorizontalDivider()
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Total Orders Synced:", fontSize = 13.sp)
+                            Text("${result.successCount} / ${result.totalOrders}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Total Batch Revenue:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("₹${"%.2f".format(result.totalRevenue)}", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Cash Revenue:", fontSize = 12.sp, color = Color.Gray)
+                                    Text("₹${"%.2f".format(result.cashRevenue)}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Online / UPI Revenue:", fontSize = 12.sp, color = Color.Gray)
+                                    Text("₹${"%.2f".format(result.onlineRevenue)}", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        if (result.failedCount > 0) {
+                            Text(
+                                text = "⚠️ ${result.failedCount} orders failed to upload. They remain safely saved in offline queue.",
+                                fontSize = 11.sp,
+                                color = Color.Red
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.dismissRevenueDialog() },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Done")
+                    }
+                }
+            )
+        }
+
+        // ─── Offline Queue Review BottomSheet ──────────────────────────────
+        if (showQueueSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showQueueSheet = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Offline Bills Queue (${unsyncedOrders.size})", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Total: ₹${"%.0f".format(pendingTotalRevenue)}", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (unsyncedOrders.isEmpty()) {
+                        Text("No pending offline orders.", color = Color.Gray, fontSize = 12.sp)
                     } else {
                         LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.heightIn(max = 300.dp)
+                            modifier = Modifier.weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            items(unsyncedOrders) { item ->
+                                Card(
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    elevation = CardDefaults.cardElevation(1.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Order #${item.order.order_number}",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
+                                            Text(
+                                                text = "${item.order.order_items.size} items • ${item.order.payment_method} • ${item.order.required_time ?: ""}",
+                                                fontSize = 11.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "₹${"%.0f".format(item.order.total_amount)}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        IconButton(
+                                            onClick = { viewModel.deleteOfflineOrder(item.localId) },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                showQueueSheet = false
+                                viewModel.syncAllOrdersToServer()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sync All (${unsyncedOrders.size}) to Server Now")
+                        }
+                    }
+                }
+            }
+        }
+
+        // ─── Website Order Picker BottomSheet ──────────────────────────────
+        if (showOrderPickerSheet && uiState is BillingState.Success) {
+            val pendingOrders = (uiState as BillingState.Success).pendingWebsiteOrders
+            ModalBottomSheet(
+                onDismissRequest = { showOrderPickerSheet = false }
+            ) {
+                Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    Text(
+                        text = "Pending Website Orders (${pendingOrders.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (pendingOrders.isEmpty()) {
+                        Text("No pending online orders at the moment", color = Color.Gray, fontSize = 12.sp)
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(pendingOrders) { order ->
                                 Card(
                                     modifier = Modifier
@@ -419,27 +735,37 @@ fun BillingScreen(
                                         .clickable {
                                             viewModel.loadWebsiteOrderToCart(order)
                                             showOrderPickerSheet = false
-                                            Toast.makeText(context, "Loaded order #${order.order_number} to cart", Toast.LENGTH_SHORT).show()
-                                        }
+                                            Toast.makeText(context, "Loaded #${order.order_number} to cart", Toast.LENGTH_SHORT).show()
+                                        },
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(10.dp)) {
-                                        Text("#${order.order_number} • ${order.order_type}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        if (!order.customers?.name.isNullOrBlank() && order.customers?.name?.lowercase() !in listOf("counter customer", "test user", "guest", "walk-in")) {
-                                            Text("Customer: ${order.customers?.name} (${order.customers?.phone ?: ""})", fontSize = 11.sp, color = Color.Gray)
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("#${order.order_number}", fontWeight = FontWeight.Bold)
+                                            Text("₹${order.total_amount.toInt()}", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                                         }
-                                        Text("Total: ₹${order.total_amount.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text(
+                                            text = "${order.customers?.name ?: "Customer"} - ${order.customers?.phone ?: ""}",
+                                            fontSize = 11.sp,
+                                            color = Color.Gray
+                                        )
+                                        Text(
+                                            text = "${order.order_items.size} items: " + order.order_items.joinToString(", ") {
+                                                "${it.quantity}x ${it.food_items?.name ?: it.combos?.name ?: "Item"}"
+                                            },
+                                            fontSize = 11.sp,
+                                            maxLines = 1
+                                        )
                                     }
                                 }
                             }
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showOrderPickerSheet = false }) {
-                        Text("Close")
-                    }
                 }
-            )
+            }
         }
     }
 }
