@@ -53,6 +53,7 @@ fun BillingScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showOrderPickerSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
+    var selectedOfflineOrderForDetails by remember { mutableStateOf<com.maduraifoodcorner.admin.data.offline.OfflineOrder?>(null) }
 
     val eligibleSubtotal = discountBreakdown.eligibleSubtotal
     val specialOfferSubtotal = discountBreakdown.specialOfferSubtotal
@@ -647,6 +648,11 @@ fun BillingScreen(
                         ) {
                             items(unsyncedOrders) { item ->
                                 Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedOfflineOrderForDetails = item
+                                        },
                                     shape = RoundedCornerShape(8.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     elevation = CardDefaults.cardElevation(1.dp)
@@ -659,11 +665,27 @@ fun BillingScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Order #${item.order.order_number}",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "Order #${item.order.order_number}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "TAP DETAILS",
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
                                             Text(
                                                 text = "${item.order.order_items.size} items • ${item.order.payment_method} • ${item.order.required_time ?: ""}",
                                                 fontSize = 11.sp,
@@ -678,13 +700,32 @@ fun BillingScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
 
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
 
+                                        // Quick inline Reprint button
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.reprintOrder(item.order) { ok ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (ok) "Receipt #${item.order.order_number} Printed!" else "Printer Error / Disconnected",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(Icons.Default.Print, contentDescription = "Reprint", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                        }
+
+                                        Spacer(modifier = Modifier.width(2.dp))
+
+                                        // Delete Offline Order button
                                         IconButton(
                                             onClick = { viewModel.deleteOfflineOrder(item.localId) },
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(28.dp)
                                         ) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 }
@@ -708,6 +749,156 @@ fun BillingScreen(
                     }
                 }
             }
+        }
+
+        // ─── Offline Order Details & Reprint Modal Dialog ──────────────────
+        if (selectedOfflineOrderForDetails != null) {
+            val offlineItem = selectedOfflineOrderForDetails!!
+            val o = offlineItem.order
+
+            AlertDialog(
+                onDismissRequest = { selectedOfflineOrderForDetails = null },
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Order #${o.order_number}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Surface(
+                            color = Color(0xFFFFF3E0),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "OFFLINE QUEUE",
+                                color = Color(0xFFE65100),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Order Metadata
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(text = "Date: ${o.required_date} • Time: ${o.required_time ?: "Now"}", fontSize = 11.sp, color = Color.Gray)
+                                Text(text = "Type: ${o.order_type} • Payment: ${o.payment_method}", fontSize = 11.sp, color = Color.Gray)
+                                if (o.customers != null && !o.customers.name.isNullOrBlank() && o.customers.name.lowercase() !in listOf("walk-in customer", "walk-in", "guest") && o.customers.phone != "0000000000") {
+                                    Text(text = "Customer: ${o.customers.name} (${o.customers.phone})", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+
+                        // Order Line Items List
+                        Text(text = "Items (${o.order_items.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 180.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(o.order_items) { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.food_items?.name ?: item.combos?.name ?: "Item",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "${item.quantity} x ₹${item.unit_price.toInt()}",
+                                            fontSize = 10.sp,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                    Text(
+                                        text = "₹${item.line_total.toInt()}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                            }
+                        }
+
+                        // Pricing Breakdown
+                        val subtotalVal = o.subtotal ?: o.order_items.sumOf { it.line_total }
+                        if (o.discount_amount != null && o.discount_amount > 0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Subtotal:", fontSize = 12.sp, color = Color.Gray)
+                                Text("₹${"%.2f".format(subtotalVal)}", fontSize = 12.sp)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val pct = o.discount_percentage?.toInt() ?: 0
+                                Text("Discount ($pct%):", fontSize = 12.sp, color = Color(0xFF2E7D32))
+                                Text("-₹${"%.2f".format(o.discount_amount)}", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total Amount:", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                            Text("₹${"%.2f".format(o.total_amount)}", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.reprintOrder(o) { ok ->
+                                Toast.makeText(
+                                    context,
+                                    if (ok) "Thermal Receipt Printed Successfully!" else "Printer Connection Error. Please check printer.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Reprint Receipt", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { selectedOfflineOrderForDetails = null }
+                    ) {
+                        Text("Close")
+                    }
+                }
+            )
         }
 
         // ─── Website Order Picker BottomSheet ──────────────────────────────

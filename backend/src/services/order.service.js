@@ -234,11 +234,23 @@ class OrderService {
     const requiredDate = this.parseDate(data.required_date);
     let requiredTime = null;
     if (data.required_time) {
-      const timeParts = data.required_time.split(':');
-      if (timeParts.length >= 2) {
-        const dummyDate = new Date();
-        dummyDate.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0);
-        requiredTime = dummyDate;
+      try {
+        const timeParts = data.required_time.trim().split(':');
+        if (timeParts.length >= 2) {
+          let hours = parseInt(timeParts[0], 10) || 0;
+          const minAndMeridiem = timeParts[1].trim().split(' ');
+          let minutes = parseInt(minAndMeridiem[0], 10) || 0;
+          if (minAndMeridiem.length > 1) {
+            const meridiem = minAndMeridiem[1].toUpperCase();
+            if (meridiem === 'PM' && hours < 12) hours += 12;
+            if (meridiem === 'AM' && hours === 12) hours = 0;
+          }
+          const dummyDate = new Date();
+          dummyDate.setHours(hours, minutes, 0, 0);
+          requiredTime = dummyDate;
+        }
+      } catch (e) {
+        requiredTime = null;
       }
     }
 
@@ -255,6 +267,7 @@ class OrderService {
       items: data.items,
       order_type: data.order_type,
       required_date: requiredDate || new Date(),
+      order_source: data.order_source,
     });
 
     // 2. Generate Sequential Order Number by Channel (MFCW for website, MFCS for shop/POS)

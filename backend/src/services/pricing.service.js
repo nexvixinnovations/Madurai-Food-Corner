@@ -84,10 +84,12 @@ class PricingService {
    *   'combo' — Combo meal (eligible for discount)
    *   'offer' — Special Offer item (NOT eligible for discount, not counted toward threshold)
    */
-  async calculateOrderPricing({ items, order_type = 'Parcel', required_date = new Date() }) {
+  async calculateOrderPricing({ items, order_type = 'Parcel', required_date = new Date(), order_source = 'website' }) {
     if (!Array.isArray(items) || items.length === 0) {
       throw new ApiError(400, 'Order must contain at least one item.');
     }
+
+    const isShop = order_source && ['POS Counter', 'Shop', 'pos', 'counter'].some(s => (order_source || '').toLowerCase().includes(s.toLowerCase()));
 
     const settings = await prisma.settings.findFirst().catch(() => null);
 
@@ -111,19 +113,22 @@ class PricingService {
           throw new ApiError(404, `Food item with ID ${item.id} not found.`);
         }
 
-        if (food.available === false) {
+        if (!isShop && food.available === false) {
           throw new ApiError(400, `Food item '${food.name}' is currently unavailable.`);
         }
 
-        if (!this.isFoodAvailableOnDate(food.available_days, required_date)) {
+        if (!isShop && !this.isFoodAvailableOnDate(food.available_days, required_date)) {
           const dayName = this.getDayName(required_date);
           throw new ApiError(400, `'${food.name}' is not available on ${dayName}. Available days: ${food.available_days}.`);
         }
 
-        // Use individual item offer price if enabled
-        const unitPrice = food.offer_enabled && food.offer_price && parseFloat(food.offer_price) > 0
+        // Use individual item offer price if enabled or fallback to unit_price in request
+        const dbUnitPrice = food.offer_enabled && food.offer_price && parseFloat(food.offer_price) > 0
           ? parseFloat(food.offer_price)
           : parseFloat(food.price);
+        const unitPrice = (isShop && item.unit_price && parseFloat(item.unit_price) > 0)
+          ? parseFloat(item.unit_price)
+          : dbUnitPrice;
 
         const lineTotal = this.round2(unitPrice * qty);
         eligibleSubtotal += lineTotal;
@@ -150,12 +155,14 @@ class PricingService {
           throw new ApiError(404, `Combo with ID ${item.id} not found.`);
         }
 
-        if (combo.available === false) {
+        if (!isShop && combo.available === false) {
           throw new ApiError(400, `Combo '${combo.name}' is currently unavailable.`);
         }
 
         let unitPrice;
-        if (combo.offer_enabled && combo.offer_price && parseFloat(combo.offer_price) > 0) {
+        if (isShop && item.unit_price && parseFloat(item.unit_price) > 0) {
+          unitPrice = parseFloat(item.unit_price);
+        } else if (combo.offer_enabled && combo.offer_price && parseFloat(combo.offer_price) > 0) {
           unitPrice = parseFloat(combo.offer_price);
         } else if (isParcel) {
           unitPrice = parseFloat(combo.parcel_price || combo.price);
@@ -188,12 +195,14 @@ class PricingService {
           throw new ApiError(404, `Special offer with ID ${item.id} not found.`);
         }
 
-        if (offer.available === false) {
+        if (!isShop && offer.available === false) {
           throw new ApiError(400, `Special offer '${offer.title}' is currently unavailable.`);
         }
 
         // Offer price is fixed — no additional percentage discount applied
-        const unitPrice = parseFloat(offer.offer_price || offer.price || 99);
+        const unitPrice = (isShop && item.unit_price && parseFloat(item.unit_price) > 0)
+          ? parseFloat(item.unit_price)
+          : parseFloat(offer.offer_price || offer.price || 99);
         const lineTotal = this.round2(unitPrice * qty);
         specialOfferSubtotal += lineTotal;  // goes into NON-eligible bucket
 

@@ -429,6 +429,17 @@ class BillingViewModel @Inject constructor(
         offlineBillingManager.removeSingleOfflineOrder(localId)
     }
 
+    fun reprintOrder(order: Order, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val ok = printRepository.printOrderReceipt(order)
+                onResult(ok)
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
     fun loadWebsiteOrderToCart(order: Order) {
         val state = _uiState.value
         if (state is BillingState.Success) {

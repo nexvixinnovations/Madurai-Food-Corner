@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/order.controller');
 
-const { sensitiveRateLimiter } = require('../middleware/security.middleware');
+const { standardRateLimiter } = require('../middleware/security.middleware');
 
 /**
  * Routes for /api/orders
@@ -14,8 +14,8 @@ router.get('/', orderController.getOrders);
 // GET complete order by ID
 router.get('/:id', orderController.getOrderById);
 
-// POST create new order (Protected by sensitive rate limiter)
-router.post('/', sensitiveRateLimiter, orderController.createOrder);
+// POST create new order (Protected by standard rate limiter to support POS batch syncing)
+router.post('/', standardRateLimiter, orderController.createOrder);
 
 // PUT update order details
 router.put('/:id', orderController.updateOrder);

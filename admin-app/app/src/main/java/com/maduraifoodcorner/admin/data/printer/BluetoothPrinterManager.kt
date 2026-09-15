@@ -166,13 +166,26 @@ class BluetoothPrinterManager(private val context: Context) {
 
                 val os = outputStream ?: throw Exception("Output stream is null")
 
-                // ESC/POS Reset & Init command: 0x1B 0x40
+                // 1. ESC/POS Reset & Init command: 0x1B 0x40
                 os.write(byteArrayOf(0x1B, 0x40))
+
+                // 2. Set Thermal Heating Parameters for maximum darkness / density:
+                // Command ESC 7 (0x1B 0x37 [n1 max heating dots=7] [n2 heating time=255] [n3 heating interval=2])
+                os.write(byteArrayOf(0x1B, 0x37, 0x07.toByte(), 0xFF.toByte(), 0x02.toByte()))
+
+                // 3. Set Thermal Print Density (DC2 # n -> 0x12 0x23 0x1F - max density)
+                os.write(byteArrayOf(0x12, 0x23, 0x1F))
+
+                // 4. Turn on Emphasized / Bold (ESC E 1: 0x1B 0x45 0x01)
+                os.write(byteArrayOf(0x1B, 0x45, 0x01))
+
+                // 5. Turn on Double-strike Mode (ESC G 1: 0x1B 0x47 0x01) for extra deep/dark text
+                os.write(byteArrayOf(0x1B, 0x47, 0x01))
 
                 // Write receipt text bytes
                 os.write(receiptText.toByteArray(Charsets.UTF_8))
 
-                // ESC/POS Cut paper / feed command
+                // ESC/POS Cut paper / feed command: GS V B 0
                 os.write(byteArrayOf(0x1D, 0x56, 0x42, 0x00))
                 os.flush()
 
