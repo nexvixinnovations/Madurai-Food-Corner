@@ -273,7 +273,7 @@ fun SpecialOrdersScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("Subtotal:", fontSize = 13.sp, color = Color.Gray)
-                                    Text("₹${"%.2f".format(subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Rs. ${"%.2f".format(subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 }
 
                                 Row(
@@ -282,7 +282,7 @@ fun SpecialOrdersScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text("TOTAL AMOUNT:", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                    Text("₹${"%.2f".format(totalAmount)}", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                                    Text("Rs. ${"%.2f".format(totalAmount)}", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
                                 }
 
                                 HorizontalDivider()
@@ -290,9 +290,9 @@ fun SpecialOrdersScreen(
                                 OutlinedTextField(
                                     value = advancePaidText,
                                     onValueChange = { viewModel.setAdvancePaid(it) },
-                                    label = { Text("Advance Amount Paid (₹)") },
+                                    label = { Text("Advance Amount Paid (Rs.)") },
                                     placeholder = { Text("0.00") },
-                                    leadingIcon = { Text("₹", fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
+                                    leadingIcon = { Text("Rs.", fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
@@ -321,7 +321,7 @@ fun SpecialOrdersScreen(
                                         )
                                     }
                                     Text(
-                                        text = "₹${"%.2f".format(balanceDue)}",
+                                        text = "Rs. ${"%.2f".format(balanceDue)}",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 18.sp,
                                         color = if (balanceDue <= 0.0) Color(0xFF2E7D32) else Color(0xFFC62828)
@@ -431,7 +431,7 @@ fun SpecialOrdersScreen(
                                     Text(food.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     Text(food.category, fontSize = 11.sp, color = Color.Gray)
                                 }
-                                Text("₹${food.price}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                                Text("Rs. ${food.price}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
                             }
                         }
                     }
@@ -474,7 +474,7 @@ fun SpecialOrdersScreen(
                     OutlinedTextField(
                         value = customPrice,
                         onValueChange = { customPrice = it },
-                        label = { Text("Custom Price per Unit (₹)") },
+                        label = { Text("Custom Price per Unit (Rs.)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -537,7 +537,7 @@ fun SpecialOrderItemRow(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.category, fontSize = 11.sp, color = Color.Gray)
                         if (item.standardPrice > 0) {
-                            Text(" • Standard: ₹${item.standardPrice}", fontSize = 11.sp, color = Color.DarkGray)
+                            Text(" • Standard: Rs. ${item.standardPrice}", fontSize = 11.sp, color = Color.DarkGray)
                         }
                     }
                 }
@@ -578,7 +578,7 @@ fun SpecialOrderItemRow(
                             onUpdatePrice(newPrice)
                         }
                     },
-                    label = { Text("Custom Price (₹) ✏️") },
+                    label = { Text("Custom Price (Rs.) ✏️") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.weight(1.3f),
@@ -596,12 +596,12 @@ fun SpecialOrderItemRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${item.quantity} portions × ₹${"%.2f".format(item.unitPrice)}",
+                    text = "${item.quantity} portions × Rs. ${"%.2f".format(item.unitPrice)}",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
                 Text(
-                    text = "Total: ₹${"%.2f".format(item.lineTotal)}",
+                    text = "Total: Rs. ${"%.2f".format(item.lineTotal)}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -646,7 +646,7 @@ fun StoredSpecialOrderCard(
                     containerColor = if (isPaid) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                 ) {
                     Text(
-                        text = if (isPaid) "PAID" else "BAL: ₹${order.balanceAmount.toInt()}",
+                        text = if (isPaid) "PAID" else "BAL: Rs. ${order.balanceAmount.toInt()}",
                         color = if (isPaid) Color(0xFF2E7D32) else Color(0xFFC62828),
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
@@ -690,16 +690,16 @@ fun StoredSpecialOrderCard(
             ) {
                 Column {
                     Text("Total Amount", fontSize = 10.sp, color = Color.Gray)
-                    Text("₹${"%.2f".format(order.totalAmount)}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Rs. ${"%.2f".format(order.totalAmount)}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
                 Column {
                     Text("Advance Paid", fontSize = 10.sp, color = Color.Gray)
-                    Text("₹${"%.2f".format(order.advancePaid)}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
+                    Text("Rs. ${"%.2f".format(order.advancePaid)}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2E7D32))
                 }
                 Column {
                     Text("Balance Due", fontSize = 10.sp, color = Color.Gray)
                     Text(
-                        "₹${"%.2f".format(order.balanceAmount)}",
+                        "Rs. ${"%.2f".format(order.balanceAmount)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = if (order.balanceAmount <= 0) Color(0xFF2E7D32) else Color(0xFFC62828)

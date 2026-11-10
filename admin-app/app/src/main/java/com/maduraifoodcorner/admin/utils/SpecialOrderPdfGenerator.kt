@@ -2,11 +2,14 @@ package com.maduraifoodcorner.admin.utils
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
+import com.maduraifoodcorner.admin.R
 import com.maduraifoodcorner.admin.data.model.SpecialOrder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -20,217 +23,220 @@ class SpecialOrderPdfGenerator @Inject constructor(
 ) {
 
     /**
-     * Generates a professional PDF invoice for the special order and saves it to local app storage.
+     * Generates a modern minimalist PDF invoice matching the exact design specification:
+     * - Bold "INVOICE" header with "Madurai Food Corner" and "Special Order"
+     * - Invoice Number, Invoice Date, Due Date, and Customer details
+     * - Illustrated food platter artwork in the top right
+     * - Clean horizontal bordered table with Item, Qty, Price, Amount
+     * - Currency displayed in "Rs." (e.g. Rs. 80.00, Rs. 8000.00)
+     * - Subtotal, Advance Paid, Balance Due / Total Due
+     * - Order Notes section
+     * - Centered "Thank you for your order!" footer
      */
     fun generateInvoicePdf(order: SpecialOrder): File {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Standard A4 (595 x 842)
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Standard A4 (595 x 842 pt)
         val page = pdfDocument.startPage(pageInfo)
         val canvas = page.canvas
 
-        val titlePaint = Paint().apply {
-            color = Color.rgb(183, 28, 28) // Deep Crimson Red
-            textSize = 20f
+        val blackColor = Color.rgb(20, 20, 20)
+        val darkGray = Color.rgb(70, 70, 70)
+
+        // ─── Paint Styles ───
+        val invoiceTitlePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 30f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        val brandTitlePaint = Paint().apply {
+            color = blackColor
+            textSize = 14f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
 
         val subtitlePaint = Paint().apply {
-            color = Color.rgb(80, 80, 80)
-            textSize = 10f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            isAntiAlias = true
-        }
-
-        val sectionHeadingPaint = Paint().apply {
-            color = Color.rgb(33, 33, 33)
+            color = darkGray
             textSize = 12f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val textPaint = Paint().apply {
-            color = Color.rgb(40, 40, 40)
-            textSize = 10f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             isAntiAlias = true
         }
 
-        val boldTextPaint = Paint().apply {
-            color = Color.rgb(30, 30, 30)
-            textSize = 10f
+        val metaLabelPaint = Paint().apply {
+            color = blackColor
+            textSize = 11f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        val metaValuePaint = Paint().apply {
+            color = darkGray
+            textSize = 11f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             isAntiAlias = true
         }
 
         val tableHeaderPaint = Paint().apply {
-            color = Color.rgb(240, 240, 240)
-            style = Paint.Style.FILL
-        }
-
-        val linePaint = Paint().apply {
-            color = Color.rgb(210, 210, 210)
-            strokeWidth = 1f
-        }
-
-        var yPos = 45f
-
-        // ─── Header: Restaurant Branding ───
-        canvas.drawText("MADURAI FOOD CORNER", 40f, yPos, titlePaint)
-        yPos += 14f
-        canvas.drawText("Authentic Madurai Special Catering & Restaurant ERP", 40f, yPos, subtitlePaint)
-        yPos += 12f
-        canvas.drawText("Main Road, Madurai | Phone: +91 98765 43210 | GSTIN: 33AAAAA0000A1Z5", 40f, yPos, subtitlePaint)
-        yPos += 16f
-
-        // Invoice Banner
-        canvas.drawLine(40f, yPos, 555f, yPos, linePaint)
-        yPos += 20f
-
-        val invoiceBannerPaint = Paint().apply {
-            color = Color.rgb(230, 81, 0)
-            textSize = 14f
+            color = Color.BLACK
+            textSize = 11.5f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("SPECIAL BULK ORDER INVOICE", 40f, yPos, invoiceBannerPaint)
-        yPos += 22f
 
-        // ─── Order & Customer Info (Two Columns) ───
-        val leftX = 40f
-        val rightX = 320f
-        val metaStartY = yPos
-
-        // Left Column: Customer Details
-        canvas.drawText("CUSTOMER DETAILS:", leftX, metaStartY, sectionHeadingPaint)
-        canvas.drawText("Name: ${order.customerName}", leftX, metaStartY + 15f, textPaint)
-        canvas.drawText("Phone: ${order.customerPhone}", leftX, metaStartY + 30f, textPaint)
-        if (order.eventDate.isNotBlank()) {
-            canvas.drawText("Event/Delivery: ${order.eventDate}", leftX, metaStartY + 45f, textPaint)
+        val tableTextPaint = Paint().apply {
+            color = blackColor
+            textSize = 10.5f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            isAntiAlias = true
         }
 
-        // Right Column: Order Details
-        canvas.drawText("INVOICE DETAILS:", rightX, metaStartY, sectionHeadingPaint)
-        canvas.drawText("Order No: ${order.orderNumber}", rightX, metaStartY + 15f, boldTextPaint)
-        canvas.drawText("Date: ${order.createdAtFormatted.ifBlank { "Today" }}", rightX, metaStartY + 30f, textPaint)
-        val statusColor = if (order.balanceAmount <= 0) Color.rgb(46, 125, 50) else Color.rgb(198, 40, 40)
-        val statusPaint = Paint().apply {
-            color = statusColor
-            textSize = 10f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        }
-        canvas.drawText("Payment Status: ${order.paymentStatus}", rightX, metaStartY + 45f, statusPaint)
-
-        yPos = metaStartY + 70f
-
-        // ─── Items Table Header ───
-        canvas.drawRect(40f, yPos - 12f, 555f, yPos + 8f, tableHeaderPaint)
-        canvas.drawText("S.No", 48f, yPos, sectionHeadingPaint)
-        canvas.drawText("Item Name", 90f, yPos, sectionHeadingPaint)
-        canvas.drawText("Qty (Bulk)", 320f, yPos, sectionHeadingPaint)
-        canvas.drawText("Price (₹)", 410f, yPos, sectionHeadingPaint)
-        canvas.drawText("Total (₹)", 490f, yPos, sectionHeadingPaint)
-
-        yPos += 14f
-        canvas.drawLine(40f, yPos, 555f, yPos, linePaint)
-        yPos += 14f
-
-        // ─── Table Rows ───
-        order.items.forEachIndexed { index, item ->
-            canvas.drawText("${index + 1}", 48f, yPos, textPaint)
-            val nameDisplay = if (item.foodName.length > 34) item.foodName.take(31) + "..." else item.foodName
-            canvas.drawText(nameDisplay, 90f, yPos, boldTextPaint)
-            canvas.drawText("${item.quantity}", 320f, yPos, textPaint)
-            canvas.drawText("₹${"%.2f".format(item.unitPrice)}", 410f, yPos, textPaint)
-            canvas.drawText("₹${"%.2f".format(item.lineTotal)}", 490f, yPos, boldTextPaint)
-
-            yPos += 18f
-            if (index < order.items.size - 1) {
-                val dottedLine = Paint().apply {
-                    color = Color.rgb(240, 240, 240)
-                    strokeWidth = 1f
-                }
-                canvas.drawLine(40f, yPos - 6f, 555f, yPos - 6f, dottedLine)
-            }
-        }
-
-        yPos += 10f
-        canvas.drawLine(40f, yPos, 555f, yPos, linePaint)
-        yPos += 20f
-
-        // ─── Totals & Financial Balance Box ───
-        val boxLeft = 310f
-        val boxRight = 555f
-        val boxTop = yPos - 10f
-        val boxHeight = 105f
-
-        val boxBg = Paint().apply {
-            color = Color.rgb(250, 250, 250)
-            style = Paint.Style.FILL
-        }
-        val boxBorder = Paint().apply {
-            color = Color.rgb(200, 200, 200)
-            style = Paint.Style.STROKE
-            strokeWidth = 1.5f
-        }
-        canvas.drawRect(boxLeft, boxTop, boxRight, boxTop + boxHeight, boxBg)
-        canvas.drawRect(boxLeft, boxTop, boxRight, boxTop + boxHeight, boxBorder)
-
-        var totalY = boxTop + 22f
-        canvas.drawText("Subtotal:", boxLeft + 15f, totalY, textPaint)
-        canvas.drawText("₹${"%.2f".format(order.subtotal)}", boxRight - 80f, totalY, textPaint)
-
-        totalY += 20f
-        val totalLabelPaint = Paint().apply {
+        val tableLinePaint = Paint().apply {
             color = Color.BLACK
-            textSize = 12f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            strokeWidth = 1.5f
+            isAntiAlias = true
         }
-        canvas.drawText("TOTAL AMOUNT:", boxLeft + 15f, totalY, totalLabelPaint)
-        canvas.drawText("₹${"%.2f".format(order.totalAmount)}", boxRight - 80f, totalY, totalLabelPaint)
 
-        totalY += 20f
-        val advancePaint = Paint().apply {
-            color = Color.rgb(46, 125, 50)
-            textSize = 11f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        }
-        canvas.drawText("Advance Paid:", boxLeft + 15f, totalY, advancePaint)
-        canvas.drawText("₹${"%.2f".format(order.advancePaid)}", boxRight - 80f, totalY, advancePaint)
-
-        totalY += 22f
-        val balanceColor = if (order.balanceAmount <= 0) Color.rgb(46, 125, 50) else Color.rgb(198, 40, 40)
-        val balancePaint = Paint().apply {
-            color = balanceColor
-            textSize = 13f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        }
-        canvas.drawText("BALANCE DUE:", boxLeft + 15f, totalY, balancePaint)
-        canvas.drawText("₹${"%.2f".format(order.balanceAmount)}", boxRight - 80f, totalY, balancePaint)
-
-        // ─── Footer Notes & Terms ───
-        yPos = boxTop + boxHeight + 40f
-        val footerPaint = Paint().apply {
-            color = Color.rgb(100, 100, 100)
-            textSize = 9f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
-        }
-        canvas.drawText("Terms & Conditions:", 40f, yPos, sectionHeadingPaint)
-        yPos += 14f
-        canvas.drawText("1. Advance payment is non-refundable once kitchen preparation begins.", 40f, yPos, footerPaint)
-        yPos += 12f
-        canvas.drawText("2. Remaining balance must be cleared upon delivery or event service completion.", 40f, yPos, footerPaint)
-        yPos += 12f
-        canvas.drawText("3. This is a computer-generated special order invoice and requires no physical signature.", 40f, yPos, footerPaint)
-
-        yPos += 25f
-        val centerThankYou = Paint().apply {
-            color = Color.rgb(183, 28, 28)
-            textSize = 11f
+        val thankYouPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 14f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             textAlign = Paint.Align.CENTER
+            isAntiAlias = true
         }
-        canvas.drawText("Thank you for your special order! Taste the Pride of Madurai.", 297f, yPos, centerThankYou)
+
+        // ─── Top Left: Header & Details ───
+        var yPos = 82f
+        val leftX = 45f
+        val rightLimit = 550f
+
+        canvas.drawText("INVOICE", leftX, yPos, invoiceTitlePaint)
+        yPos += 22f
+        canvas.drawText("Madurai Food Corner", leftX, yPos, brandTitlePaint)
+        yPos += 18f
+        canvas.drawText("Special Order", leftX, yPos, subtitlePaint)
+
+        yPos += 30f
+        // Metadata fields
+        val metaValues = listOf(
+            "Invoice Number:" to order.orderNumber,
+            "Invoice Date:" to order.createdAtFormatted.ifBlank { "Today" },
+            "Due Date:" to order.eventDate.ifBlank { "On Delivery" },
+            "Customer:" to "${order.customerName} (${order.customerPhone})"
+        )
+
+        metaValues.forEach { (label, value) ->
+            canvas.drawText(label, leftX, yPos, metaLabelPaint)
+            canvas.drawText(value, leftX + 105f, yPos, metaValuePaint)
+            yPos += 18f
+        }
+
+        // ─── Top Right: Illustrated Artwork ───
+        try {
+            val artBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.invoice_art)
+            if (artBitmap != null) {
+                val targetWidth = 195
+                val targetHeight = (targetWidth.toFloat() / artBitmap.width * artBitmap.height).toInt()
+                val scaled = Bitmap.createScaledBitmap(artBitmap, targetWidth, targetHeight, true)
+                canvas.drawBitmap(scaled, rightLimit - targetWidth, 50f, null)
+            }
+        } catch (ignored: Exception) {}
+
+        // ─── Table Section ───
+        yPos = 245f
+
+        // Top Border Line
+        canvas.drawLine(leftX, yPos, rightLimit, yPos, tableLinePaint)
+        yPos += 20f
+
+        // Table Header Row
+        val colItemX = leftX
+        val colQtyX = 270f
+        val colPriceX = 360f
+        val colAmountX = 455f
+
+        canvas.drawText("Item", colItemX, yPos, tableHeaderPaint)
+        canvas.drawText("Qty", colQtyX, yPos, tableHeaderPaint)
+        canvas.drawText("Price", colPriceX, yPos, tableHeaderPaint)
+        canvas.drawText("Amount", colAmountX, yPos, tableHeaderPaint)
+
+        yPos += 10f
+        // Space below header
+        yPos += 18f
+
+        // Table Rows
+        order.items.forEach { item ->
+            val nameDisplay = if (item.foodName.length > 34) item.foodName.take(31) + "..." else item.foodName
+            canvas.drawText(nameDisplay, colItemX, yPos, tableTextPaint)
+            canvas.drawText("${item.quantity}", colQtyX, yPos, tableTextPaint)
+            canvas.drawText("Rs. ${"%.2f".format(item.unitPrice)}", colPriceX, yPos, tableTextPaint)
+            canvas.drawText("Rs. ${"%.2f".format(item.lineTotal)}", colAmountX, yPos, tableTextPaint)
+
+            yPos += 24f
+        }
+
+        // Bottom Table Border Line
+        yPos += 4f
+        canvas.drawLine(leftX, yPos, rightLimit, yPos, tableLinePaint)
+        yPos += 28f
+
+        // ─── Bottom Breakdown & Order Notes ───
+        val notesLeftX = 300f
+        val summaryYStart = yPos
+
+        // Left Column: Financial Breakdown in Rs.
+        var sumY = summaryYStart
+        val sumLabelX = leftX
+        val sumValX = leftX + 110f
+
+        canvas.drawText("Subtotal:", sumLabelX, sumY, metaLabelPaint)
+        canvas.drawText("Rs. ${"%.2f".format(order.subtotal)}", sumValX, sumY, metaValuePaint)
+        sumY += 18f
+
+        if (order.advancePaid > 0) {
+            canvas.drawText("Total Amount:", sumLabelX, sumY, metaLabelPaint)
+            canvas.drawText("Rs. ${"%.2f".format(order.totalAmount)}", sumValX, sumY, metaValuePaint)
+            sumY += 18f
+
+            canvas.drawText("Advance Paid:", sumLabelX, sumY, metaLabelPaint)
+            canvas.drawText("Rs. ${"%.2f".format(order.advancePaid)}", sumValX, sumY, metaValuePaint)
+            sumY += 20f
+
+            val totalDuePaint = Paint().apply {
+                color = Color.BLACK
+                textSize = 12f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                isAntiAlias = true
+            }
+            canvas.drawText("BALANCE DUE:", sumLabelX, sumY, totalDuePaint)
+            canvas.drawText("Rs. ${"%.2f".format(order.balanceAmount)}", sumValX, sumY, totalDuePaint)
+        } else {
+            val totalDuePaint = Paint().apply {
+                color = Color.BLACK
+                textSize = 12f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                isAntiAlias = true
+            }
+            canvas.drawText("TOTAL DUE:", sumLabelX, sumY, totalDuePaint)
+            canvas.drawText("Rs. ${"%.2f".format(order.totalAmount)}", sumValX, sumY, totalDuePaint)
+        }
+
+        // Right Column: Order Notes
+        var notesY = summaryYStart
+        canvas.drawText("Order Notes", notesLeftX, notesY, metaLabelPaint)
+        notesY += 16f
+        canvas.drawText("Please confirm the order details and", notesLeftX, notesY, metaValuePaint)
+        notesY += 15f
+        canvas.drawText("delivery information before payment.", notesLeftX, notesY, metaValuePaint)
+
+        // ─── Center Footer: "Thank you for your order!" ───
+        val pageCenterX = 297f
+        var footerY = 730f
+
+        canvas.drawText("Thank you", pageCenterX, footerY, thankYouPaint)
+        footerY += 20f
+        canvas.drawText("for your order!", pageCenterX, footerY, thankYouPaint)
 
         pdfDocument.finishPage(page)
 
@@ -279,11 +285,10 @@ class SpecialOrderPdfGenerator @Inject constructor(
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "Madurai Food Corner Special Order Invoice - $customerName")
+            putExtra(Intent.EXTRA_SUBJECT, "Madurai Food Corner Invoice - $customerName")
             putExtra(Intent.EXTRA_TEXT, "Here is your Madurai Food Corner Special Bulk Order Invoice for $customerName.")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Share Invoice PDF"))
     }
 }
-

@@ -87,7 +87,7 @@ fun AutoSyncConfirmationDialog(
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Total Amount: ₹${"%.2f".format(pendingTotalAmount)}",
+                            text = "Total Amount: Rs. ${"%.2f".format(pendingTotalAmount)}",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
@@ -217,7 +217,7 @@ fun AutoSyncResultDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Total Revenue Synced:", fontSize = 13.sp)
-                    Text("₹${"%.2f".format(result.totalRevenue)}", fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32), fontSize = 13.sp)
+                    Text("Rs. ${"%.2f".format(result.totalRevenue)}", fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32), fontSize = 13.sp)
                 }
                 if (result.failedCount > 0) {
                     HorizontalDivider()
