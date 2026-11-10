@@ -16,6 +16,7 @@ import com.maduraifoodcorner.admin.ui.screens.orders.OrdersScreen
 import com.maduraifoodcorner.admin.ui.screens.printer.PrinterSettingsScreen
 import com.maduraifoodcorner.admin.ui.screens.reports.ReportsScreen
 import com.maduraifoodcorner.admin.ui.screens.settings.SettingsScreen
+import com.maduraifoodcorner.admin.ui.screens.special.SpecialOrdersScreen
 
 @Composable
 fun NavGraph(
@@ -62,6 +63,10 @@ fun NavGraph(
 
         composable(Screen.Billing.route) {
             BillingScreen(onOpenDrawer = onOpenDrawer)
+        }
+
+        composable(Screen.SpecialOrders.route) {
+            SpecialOrdersScreen(onOpenDrawer = onOpenDrawer)
         }
 
         composable(Screen.Reports.route) {

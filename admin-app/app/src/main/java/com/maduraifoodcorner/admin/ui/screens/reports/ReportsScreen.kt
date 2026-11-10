@@ -35,6 +35,9 @@ fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val foodSales by viewModel.foodSales.collectAsState()
+    val isFoodSalesLoading by viewModel.isFoodSalesLoading.collectAsState()
+    val selectedFoodPreset by viewModel.selectedFoodPreset.collectAsState()
     val context = LocalContext.current
     var showPinDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
@@ -67,7 +70,10 @@ fun ReportsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.loadReport() }) {
+                    IconButton(onClick = {
+                        viewModel.loadReport()
+                        viewModel.loadFoodSales(selectedFoodPreset)
+                    }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -192,7 +198,13 @@ fun ReportsScreen(
                             )
                         }
 
-
+                        // ─── Food Popularity Analytics Graph ─────────────
+                        FoodAnalyticsChartCard(
+                            foodSales = foodSales,
+                            isLoading = isFoodSalesLoading,
+                            selectedPreset = selectedFoodPreset,
+                            onPresetSelected = { preset -> viewModel.loadFoodSales(preset) }
+                        )
                     }
                 }
             }

@@ -10,16 +10,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.maduraifoodcorner.admin.ui.components.AppBottomBar
-import com.maduraifoodcorner.admin.ui.components.AppDrawerContent
+import com.maduraifoodcorner.admin.data.offline.AutoSyncManager
+import com.maduraifoodcorner.admin.data.offline.OfflineBillingManager
+import com.maduraifoodcorner.admin.ui.components.*
 import com.maduraifoodcorner.admin.ui.navigation.NavGraph
 import com.maduraifoodcorner.admin.ui.navigation.Screen
 import com.maduraifoodcorner.admin.ui.theme.MaduraiFoodCornerAdminTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var autoSyncManager: AutoSyncManager
+
+    @Inject
+    lateinit var offlineBillingManager: OfflineBillingManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -30,6 +39,15 @@ class MainActivity : ComponentActivity() {
 
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
+
+                // Auto-sync states
+                val showAutoSyncConfirm by autoSyncManager.showConfirmationDialog.collectAsState()
+                val countdownSeconds by autoSyncManager.countdownSeconds.collectAsState()
+                val connectionType by autoSyncManager.connectionType.collectAsState()
+                val unsyncedOrders by offlineBillingManager.unsyncedOrders.collectAsState()
+                val syncProgress by autoSyncManager.syncProgress.collectAsState()
+                val showResultDialog by autoSyncManager.showResultDialog.collectAsState()
+                val lastSyncResult by autoSyncManager.lastSyncResult.collectAsState()
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -75,6 +93,33 @@ class MainActivity : ComponentActivity() {
                                 .padding(padding)
                         )
                     }
+                }
+
+                // ─── Network Reconnected: 30s Auto-Sync Confirmation Dialog ───
+                if (showAutoSyncConfirm && unsyncedOrders.isNotEmpty()) {
+                    val totalAmount = unsyncedOrders.sumOf { it.order.total_amount }
+                    AutoSyncConfirmationDialog(
+                        pendingOrdersCount = unsyncedOrders.size,
+                        pendingTotalAmount = totalAmount,
+                        connectionType = connectionType,
+                        countdownSeconds = countdownSeconds,
+                        onConfirm = { autoSyncManager.onUserConfirmUpload() },
+                        onCancel = { autoSyncManager.onUserCancelUpload() }
+                    )
+                }
+
+                // ─── Auto-Sync Upload In-Progress Dialog ───
+                if (syncProgress != null) {
+                    val (current, total) = syncProgress!!
+                    AutoSyncProgressDialog(current = current, total = total)
+                }
+
+                // ─── Upload Finished: Result Summary Dialog ───
+                if (showResultDialog && lastSyncResult != null) {
+                    AutoSyncResultDialog(
+                        result = lastSyncResult!!,
+                        onDismiss = { autoSyncManager.dismissResultDialog() }
+                    )
                 }
             }
         }

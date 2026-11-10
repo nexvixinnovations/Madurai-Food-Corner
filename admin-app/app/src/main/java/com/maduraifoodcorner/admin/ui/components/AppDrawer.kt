@@ -29,6 +29,8 @@ fun AppDrawerContent(
     val drawerItems = listOf(
         Screen.Dashboard to Icons.Default.Dashboard,
         Screen.Orders to Icons.Default.ShoppingCart,
+        Screen.Billing to Icons.Default.ReceiptLong,
+        Screen.SpecialOrders to Icons.Default.Stars,
         Screen.Foods to Icons.Default.RestaurantMenu,
         Screen.Reports to Icons.Default.BarChart,
         Screen.Settings to Icons.Default.Settings,

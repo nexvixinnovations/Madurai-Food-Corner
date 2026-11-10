@@ -396,6 +396,20 @@ class AdminRepository @Inject constructor(private val apiService: AdminApiServic
         }
     }
 
+    suspend fun getFoodSalesReport(preset: String = "month"): Result<List<FoodSaleReportItem>> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getFoodSalesReport(type = "foods", preset = preset)
+            if (res.isSuccessful && res.body()?.success == true && res.body()?.data != null) {
+                Result.success(res.body()!!.data!!)
+            } else {
+                Result.failure(Exception(res.body()?.message ?: "Failed to fetch food sales analytics"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     suspend fun exportReport(preset: String): retrofit2.Response<okhttp3.ResponseBody> = withContext(Dispatchers.IO) {
         apiService.exportReport(type = "orders", format = "excel", preset = preset)
     }

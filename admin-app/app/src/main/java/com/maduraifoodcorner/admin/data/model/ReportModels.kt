@@ -25,3 +25,12 @@ data class BusinessOverviewReport(
     val topSellingFood: String = "N/A",
     val mostOrderedCategory: String = "General"
 )
+
+data class FoodSaleReportItem(
+    val foodName: String = "",
+    val category: String = "General",
+    val quantitySold: Int = 0,
+    val revenue: Double = 0.0,
+    val averageDailySales: Double = 0.0
+)
+

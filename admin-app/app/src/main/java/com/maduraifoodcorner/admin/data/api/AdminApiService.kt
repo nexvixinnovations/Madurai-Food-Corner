@@ -132,6 +132,13 @@ interface AdminApiService {
     @GET("admin/reports")
     suspend fun getBusinessOverviewReport(@Query("type") type: String = "overview"): Response<ApiResponse<BusinessOverviewReport>>
 
+    @GET("admin/reports")
+    suspend fun getFoodSalesReport(
+        @Query("type") type: String = "foods",
+        @Query("preset") preset: String = "month"
+    ): Response<ApiResponse<List<FoodSaleReportItem>>>
+
+
     @Streaming
     @GET("admin/reports/export")
     suspend fun exportReport(

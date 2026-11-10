@@ -3,6 +3,7 @@ package com.maduraifoodcorner.admin.ui.screens.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maduraifoodcorner.admin.data.model.BusinessOverviewReport
+import com.maduraifoodcorner.admin.data.model.FoodSaleReportItem
 import com.maduraifoodcorner.admin.data.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,10 +26,20 @@ class ReportsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ReportsState>(ReportsState.Loading)
     val uiState: StateFlow<ReportsState> = _uiState.asStateFlow()
 
+    private val _foodSales = MutableStateFlow<List<FoodSaleReportItem>>(emptyList())
+    val foodSales: StateFlow<List<FoodSaleReportItem>> = _foodSales.asStateFlow()
+
+    private val _isFoodSalesLoading = MutableStateFlow(false)
+    val isFoodSalesLoading: StateFlow<Boolean> = _isFoodSalesLoading.asStateFlow()
+
+    private val _selectedFoodPreset = MutableStateFlow("all")
+    val selectedFoodPreset: StateFlow<String> = _selectedFoodPreset.asStateFlow()
+
     private var isTodayRevenueUnlocked = false
 
     init {
         loadReport()
+        loadFoodSales("all")
     }
 
     fun loadReport() {
@@ -40,6 +51,23 @@ class ReportsViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.value = ReportsState.Error(error.message ?: "Failed to load reports")
+                }
+        }
+    }
+
+    fun loadFoodSales(preset: String) {
+        _selectedFoodPreset.value = preset
+        viewModelScope.launch {
+            _isFoodSalesLoading.value = true
+            repository.getFoodSalesReport(preset)
+                .onSuccess { list ->
+                    // Sort descending by quantity sold
+                    _foodSales.value = list.sortedByDescending { it.quantitySold }
+                    _isFoodSalesLoading.value = false
+                }
+                .onFailure {
+                    _foodSales.value = emptyList()
+                    _isFoodSalesLoading.value = false
                 }
         }
     }
